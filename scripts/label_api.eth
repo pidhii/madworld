@@ -1,0 +1,7 @@
+open 'std'
+
+let template =
+  record $ ('__component', nil) :: append (list label_base_api) (list enriched_label_api)
+
+let pub wrap_label c = {template with __component = c}
+let pub make_label sdl sdlstr = wrap_label $ new_label sdl sdlstr
