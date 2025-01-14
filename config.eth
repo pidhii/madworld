@@ -3,28 +3,55 @@
   video = {
     window_size = (800, 800),
 
-    resolution = (1920, 1080),
+    resolution = (2560, 1600),
     fullscreen = false,
 
     hardware_acceleration = true,
     vsync = false,
-    fps_limit = 60,
+    fps_limit = 150,
 
-    font = ("/usr/share/fonts/TTF/DejaVuSansMono.ttf", 16),
+    font = ("/usr/share/fonts/TTF/DejaVuSansMono.ttf", 18)
   },
 
-  colors = [
-    ("Normal", 0x8f8f8fff),
-    ("Number", 0x8fc2bbff),
-    ("Boolean", 0xffffb6ff),
-    ("String", 0xaaafebff),
+  colors = {
+    "Normal": 0x8f8f8fff,
+    "Number": 0x8fc2bbff,
+    "Boolean": 0xffffb6ff,
+    "String": 0xaaafebff,
 
-    ("InteractiveText", 0xccccccff),
-    ("DisabledInteractiveText", 0x6f6f6fff),
-    ("HighlightedInteractiveText", 0xffffffff),
-    ("Cursor", 0xffffffff),
-    ("BoxBackground", 0x1d1f21ff),
-    ("BoxBorder", 0xffffffff),
-  ],
+    "InteractiveText": 0xccccccff,
+    "DisabledInteractiveText": 0x6f6f6fff,
+    "HighlightedInteractiveText": 0xffffffff,
+    "Cursor": 0xffffffff,
+    "BoxBackground": 0x1d1f21ff,
+    "BoxBorder": 0xffffffff
+  },
+
+  textures = {
+    "PlayerGlow": "/home/pidhii/sandbox/create/madworld/textures/vision-texture.png",
+    "BloodStain": "/home/pidhii/sandbox/create/madworld/textures/blood-stain-1.png",
+    "BulletGlow": "/home/pidhii/sandbox/create/madworld/textures/BulletGlow2.png"
+  },
+
+  controls = {
+    game = {
+      keyboard = {
+        'menu': ('esc', nil),
+        'zoom-in': ('=', 'shift'),
+        'zoom-out': ('-', nil),
+        'zoom-reset': ('=', nil),
+        'camera-left': ('left', nil),
+        'camera-right': ('right', nil),
+        'camera-up': ('up', nil),
+        'camera-down': ('down', nil),
+        'camera-center': ('space', nil),
+        'fow-toggle': ('`', nil),
+        'move-x-axis': {'d': 1, 'a': 0-1},
+        'move-y-axis': {'s': 1, 'w': 0-1},
+        'pointer-click': 'lmb',
+        'ability1': 'lmb'
+      }
+    }
+  }
 }
 

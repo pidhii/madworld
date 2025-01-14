@@ -25,10 +25,6 @@ class map_editor: public ui_layer {
   void
   run_layer(ui_manager &uiman) override;
 
-  void
-  destroy_layer() override
-  { delete this; }
-
   private:
   component*
   _build_gui();

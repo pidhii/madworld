@@ -9,6 +9,7 @@
 #include "geometry.hpp"
 #include "common.hpp"
 #include "exceptions.hpp"
+#include "logging.h"
 
 #include <SDL2/SDL.h>
 
@@ -34,8 +35,8 @@ class vis_obstacle;
 inline double
 fix_angle(double phi) noexcept
 {
-  while (phi < -M_PI) phi = 2*M_PI + phi;
-  while (+M_PI < phi) phi = phi - 2*M_PI;
+  while (phi < -M_PI) phi += 2*M_PI;
+  while (+M_PI < phi) phi -= 2*M_PI;
   return phi;
 }
 
@@ -93,23 +94,24 @@ struct sight {
 
   /**
    * @{
-   * @brief Directional angles defining segment of the sight obscured by the
-   * line segment.
+   * @brief Directional angles defining segment of the sight *obscured by the
+   * line segment* (WTF!?!?!).
    * @details Obscured segment of sight is then obtained as a counter-clockwise
    * rotation from @ref sight.phi1 to @ref sight.phi2.
    */
   double phi1, phi2;
   bool is_transparent = false;
+  /** @} */
 };
 
 /**
- * @brief Compute sight on a line circle.
+ * @brief Compute sight on a circle.
  * @param src Source of sight: observer's position and vision radius.
  * @param circ Circle obscuring the sight.
  * @param[out] res If circle @p circ is within the sight, @p res is filled with
  * the sight data. Angles @p res.phi1 and @p res.phi2 are guaranteed to lie with
  * the range of [-`M_PI`, `M_PI`].
- * @return Whether the @p line is within the sight.
+ * @return Whether the @p circ is within the sight.
  * @note Contents of @p res are undefined if return value is `false`.
  */
 bool
@@ -484,7 +486,7 @@ class vision_processor {
   void
   apply(const pt2d_d &tgtsrc, std::list<sight> &tgtsights) const;
 
-  void
+  [[deprecated]] void
   apply(vision_processor &other) const
   {
     other.m_source = m_source;

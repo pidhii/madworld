@@ -116,20 +116,12 @@ mw::gui::basic_menu::run_layer(mw::ui_manager &uiman)
           {
             if (m_is_hovering)
             {
-              switch (m_c->send("hover", pack_hover(cpos, {x, y})))
-              {
-                case menu_callback_request::exit_loop: return;
-                case menu_callback_request::nothing: break;
-              }
+              m_c->send("hover", std::any(pt2d_i(x, y) - cpos));
             }
             else
             {
               m_is_hovering = true;
-              switch (m_c->send("hover-begin", pack_hover(cpos, {x, y})))
-              {
-                case menu_callback_request::exit_loop: return;
-                case menu_callback_request::nothing: break;
-              }
+              m_c->send("hover-begin", std::any(pt2d_i(x, y) - cpos));
             }
           }
           else
@@ -137,11 +129,7 @@ mw::gui::basic_menu::run_layer(mw::ui_manager &uiman)
             if (m_is_hovering)
             {
               m_is_hovering = false;
-              switch (m_c->send("hover-end", 0))
-              {
-                case menu_callback_request::exit_loop: return;
-                case menu_callback_request::nothing: break;
-              }
+              m_c->send("hover-end", 0);
             }
           }
           break;
@@ -150,22 +138,14 @@ mw::gui::basic_menu::run_layer(mw::ui_manager &uiman)
       case SDL_MOUSEBUTTONUP:
         if (event.button.button == 1 and m_is_hovering)
         {
-          switch (m_c->send("clicked", 0))
-          {
-            case menu_callback_request::exit_loop: return;
-            case menu_callback_request::nothing: break;
-          }
+          m_c->send("clicked", 0);
         }
         break;
 
       case SDL_KEYDOWN:
         if (m_kbrd_receiver.has_value())
         {
-          switch (m_kbrd_receiver.value()->send("keydown", event.key.keysym.sym))
-          {
-            case menu_callback_request::exit_loop: return;
-            case menu_callback_request::nothing: break;
-          }
+          m_kbrd_receiver.value()->send("keydown", event.key.keysym.sym);
         }
         break;
     }

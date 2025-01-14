@@ -1,4 +1,5 @@
 #include "color_manager.hpp"
+#include "central_config.hpp"
 
 #include <ether/sandbox.hpp>
 
@@ -9,26 +10,14 @@
 mw::color_manager&
 mw::color_manager::instance()
 {
-  static bool is_first_time = true;
   static color_manager self;
-  if (is_first_time)
-  {
-    self.load_config("./config.eth");
-    is_first_time = false;
-  }
   return self;
 }
 
-void
-mw::color_manager::load_config(const std::string &path)
+mw::color_manager::color_manager()
 {
-  eth::sandbox ether;
-
-  std::ostringstream cmd;
-  cmd << "first $ load '" << path << "'";
-  const eth::value conf = ether(cmd.str());
-
-  for (auto colors = conf["colors"]; not colors.is_nil(); colors = colors.cdr())
+  const eth::value conf = mw::central_config::instance().get_color_config();
+  for (auto colors = eth::list(conf); not colors.is_nil(); colors = colors.cdr())
   {
     const eth::value entry = colors.car();
     m_colors.emplace(entry[0].str(), be32toh(entry[1]));

@@ -1,8 +1,8 @@
 #ifndef FPS_DISPLAY_HPP
 #define FPS_DISPLAY_HPP
 
-#include "ui_manager.hpp"
-#include "video_manager.hpp"
+#include "ui_layer.hpp"
+#include "sdl_environment.hpp"
 #include "gui/sdl_string.hpp"
 
 #include <boost/format.hpp>
@@ -27,10 +27,6 @@ class fps_display: public ui_float {
 
   void
   draw() const override;
-
-  void
-  destroy_float() override
-  { delete this; }
 
   private:
   sdl_environment &m_sdl;

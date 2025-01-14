@@ -34,9 +34,6 @@ class video_config {
   static video_config&
   instance();
 
-  static void
-  load_config(const std::string &path, config &cfg);
-
   static eth::value
   dump_config(const config &cfg);
 
@@ -50,7 +47,7 @@ class video_config {
   video_config& operator = (video_config&&) = delete;
 
   private:
-  video_config() = default;
+  video_config();
 
   private:
   config m_config;

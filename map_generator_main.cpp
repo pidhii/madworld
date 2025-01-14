@@ -71,17 +71,17 @@ class map_generator_gui: public mw::component {
   }
 
   int
-  send(const std::string &what, mw::signal_data data) override
+  send(const std::string &what, const std::any &data) override
   {
     if (what == "hover-begin" or what == "hover")
-      m_mousepos = mw::unpack_hover(data.u64);
+      m_mousepos = std::any_cast<mw::vec2d_i>(data);
     else if (what == "hover-end")
       m_mousepos = std::nullopt;
     else if (what == "keydown")
     {
       if (m_ovl_room.has_value())
       {
-        switch (data.u64)
+        switch (std::any_cast<int>(data))
         {
           case SDLK_UP: m_ovl_room.value().shift({0, -1}); break;
           case SDLK_DOWN: m_ovl_room.value().shift({0, +1}); break;
@@ -194,7 +194,8 @@ the_main(int argc, char **argv)
   toplayout->add_component(ctllayout);
   toplayout->add_component(mapgengui);
 
-  mw::basic_menu *mainmenu = new mw::basic_menu {sdl, toplayout};
+  std::shared_ptr<mw::basic_menu> mainmenu =
+    std::make_shared<mw::basic_menu>(sdl, toplayout);
   mainmenu->align_top();
   mainmenu->align_left();
   mainmenu->attach_keyboard_receiver(mapgengui);

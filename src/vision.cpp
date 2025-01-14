@@ -44,11 +44,12 @@ mw::cast_sight(const circle &src, const circle &circ, sight &res) noexcept
   res.sight_data.circle.cphi2 =
     dirangle(circle(src.center, r)(res.phi2) - circ.center);
 
-  if (interval_size({res.phi1, res.phi2}) > M_PI)
-  {
-    std::swap(res.phi1, res.phi2);
-    std::swap(res.sight_data.circle.cphi1, res.sight_data.circle.cphi2);
-  }
+  // XXX im pretty damn certain this is wrong
+  //if (interval_size({res.phi1, res.phi2}) > M_PI)
+  //{
+    //std::swap(res.phi1, res.phi2);
+    //std::swap(res.sight_data.circle.cphi1, res.sight_data.circle.cphi2);
+  //}
 
   res.static_data = std::make_shared<sight::static_data_type>(circ);
   res.tag = sight::circle;
@@ -507,7 +508,7 @@ mw::is_before(const pt2d_d &source, const sight &a, const sight &b)
 
 static void
 _adjust_line_sight(const mw::pt2d_d &source, mw::sight &s, double phi1,
-    double phi2)
+                   double phi2)
 {
   using namespace mw;
 
@@ -534,7 +535,7 @@ _adjust_line_sight(const mw::pt2d_d &source, mw::sight &s, double phi1,
 
 static void
 _adjust_circle_sight(const mw::pt2d_d &source, mw::sight &s, double phi1,
-    double phi2)
+                     double phi2)
 {
   using namespace mw;
 
@@ -677,39 +678,44 @@ mw::vision_processor::apply(const pt2d_d &tgtsrc, std::list<sight> &tgtsights)
 {
   const circle &source = get_source();
 
-  // fix target dir-angles
-  const line_segment srcline {tgtsrc, source.center - tgtsrc};
-  for (sight &s : tgtsights)
+  // fix dir-angles of foreign sights so that they conform with `this` processor
+  if (source.center != tgtsrc)
   {
-    switch (s.tag)
+    const line_segment srcline {tgtsrc, source.center - tgtsrc};
+    for (sight &s : tgtsights)
     {
-      case sight::circle:
+      switch (s.tag)
       {
-        const circle &circ = s.static_data->circle;
-        const pt2d_d a = circ(s.sight_data.circle.cphi1);
-        const pt2d_d b = circ(s.sight_data.circle.cphi2);
-        s.phi1 = dirangle(a - source.center);
-        s.phi2 = dirangle(b - source.center);
-        if (interval_size({s.phi1, s.phi2}) > M_PI)
+        case sight::circle:
         {
-          std::swap(s.phi1, s.phi2);
-          std::swap(s.sight_data.circle.cphi1, s.sight_data.circle.cphi2);
+          const circle &circ = s.static_data->circle;
+          const pt2d_d a = circ(s.sight_data.circle.cphi1);
+          const pt2d_d b = circ(s.sight_data.circle.cphi2);
+          s.phi1 = dirangle(a - source.center);
+          s.phi2 = dirangle(b - source.center);
+          // XXX cheating
+          if (interval_size({s.phi1, s.phi2}) > M_PI)
+          {
+            std::swap(s.phi1, s.phi2);
+            std::swap(s.sight_data.circle.cphi1, s.sight_data.circle.cphi2);
+          }
+          break;
         }
-        break;
-      }
-      case sight::line:
-      {
-        const line_segment &line = s.static_data->line;
-        const pt2d_d a = line(s.sight_data.line.t1);
-        const pt2d_d b = line(s.sight_data.line.t2);
-        s.phi1 = dirangle(a - source.center);
-        s.phi2 = dirangle(b - source.center);
-        if (interval_size({s.phi1, s.phi2}) > M_PI)
+        case sight::line:
         {
-          std::swap(s.phi1, s.phi2);
-          std::swap(s.sight_data.line.t1, s.sight_data.line.t2);
+          const line_segment &line = s.static_data->line;
+          const pt2d_d a = line(s.sight_data.line.t1);
+          const pt2d_d b = line(s.sight_data.line.t2);
+          s.phi1 = dirangle(a - source.center);
+          s.phi2 = dirangle(b - source.center);
+          // XXX cheating
+          if (interval_size({s.phi1, s.phi2}) > M_PI)
+          {
+            std::swap(s.phi1, s.phi2);
+            std::swap(s.sight_data.line.t1, s.sight_data.line.t2);
+          }
+          break;
         }
-        break;
       }
     }
   }
@@ -791,6 +797,7 @@ mw::vision_processor::shadowcast(SDL_Renderer *rend, const rectangle &box,
   std::vector<pt2d_d> pts;
   for (const sight &s : m_sights)
   {
+    // FIXME XXX causing vision bug with bullet glow being visible when it shouldnt
     //if (not boxinfo.is_source_inside and
         //not overlaps_inc({boxinfo.phi1, boxinfo.phi2}, {s.phi1, s.phi2}))
       //continue;
@@ -823,14 +830,10 @@ mw::vision_processor::shadowcast(SDL_Renderer *rend, const rectangle &box,
     if (pts.empty())
       continue;
 
-    std::vector<int16_t> xs, ys;
-    for (const pt2d_d &pt : pts)
-    {
-      const pt2d_d texpt = world_to_target(pt);
-      xs.push_back(texpt.x);
-      ys.push_back(texpt.y);
-    }
-    filledPolygonColor(rend, xs.data(), ys.data(), xs.size(), color);
+    int16_t xs[pts.size()], ys[pts.size()];
+    for (size_t i = 0; i < pts.size(); ++i)
+      std::tie(xs[i], ys[i]) = pt2d<int16_t>(world_to_target(pts[i]));
+    filledPolygonColor(rend, xs, ys, pts.size(), color);
   }
   SDL_SetRenderDrawBlendMode(rend, oldblendmode);
 }

@@ -2,22 +2,14 @@
 #define GUI_MENU_HPP
 
 #include "ui_layer.hpp"
-#include "gui/utilities.hpp"
 #include "gui/components.hpp"
 #include "video_manager.hpp"
-#include "gui/sdl_string.hpp"
 
-#include <tuple>
 #include <optional>
 
 
 namespace mw {
 inline namespace gui {
-
-enum menu_callback_request {
-  nothing = 0,
-  exit_loop,
-};
 
 class basic_menu: public mw::ui_layer {
   enum class alignment {start, center, end};
@@ -56,10 +48,6 @@ class basic_menu: public mw::ui_layer {
   void
   close() noexcept
   { m_pending_close = true; }
-
-  virtual void
-  destroy_layer() override
-  { delete this; }
 
   virtual void
   draw() const override;

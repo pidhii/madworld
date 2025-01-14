@@ -1,7 +1,6 @@
 #include "map_editor.hpp"
 #include "color_manager.hpp"
 #include "video_manager.hpp"
-#include "gui/utilities.hpp"
 #include "ui_manager.hpp"
 
 #include "./wall_builder.hpp"
@@ -188,7 +187,7 @@ mw::map_editor::run_layer(ui_manager &uiman)
         if (0 < mousepos.x and mousepos.x < guiw and
             0 < mousepos.y and mousepos.y < guih)
         {
-          m_gui->send("hover", pack_hover({0, 0}, mousepos));
+          m_gui->send("hover", std::any(mousepos));
         }
         else if (0 <= mappos.x and mappos.x <= m_map.get_width() and
                  0 <= mappos.y and mappos.y <= m_map.get_height())
@@ -227,7 +226,7 @@ mw::map_editor::run_layer(ui_manager &uiman)
           if (0 < mousepos.x and mousepos.x < guiw and
               0 < mousepos.y and mousepos.y < guih)
           {
-            m_gui->send("clicked", pack_hover({0, 0}, mousepos));
+            m_gui->send("clicked", std::any(mousepos));
           }
           else if (0 <= mappos.x and mappos.x <= m_map.get_width() and
                    0 <= mappos.y and mappos.y <= m_map.get_height())

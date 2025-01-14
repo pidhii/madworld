@@ -12,7 +12,9 @@
 #include "exceptions.hpp"
 #include "textures.hpp"
 #include "video_manager.hpp"
+#include "canvas.hpp"
 #include "utl/grid.hpp"
+#include "utl/dynamic_grid.hpp"
 #include "gui/sdl_string.hpp"
 #include "gui/components.hpp"
 
@@ -111,6 +113,10 @@ class area_map {
 
   /** @name Viewport
    * @{ */
+  canvas
+  get_canvas() const noexcept
+  { return {m_sdl.get_renderer(), get_view()}; }
+
   /** @brief Get offset of the map from (0, 0) in IGU. */
   vec2d_d
   get_offset() const noexcept
@@ -132,6 +138,10 @@ class area_map {
   double
   get_scale() const noexcept
   { return m_scale; }
+
+  void
+  set_scale(double scale) noexcept
+  { m_scale = scale; }
 
   /**
    * @brief Get a viewport as a \ref mw::mapping from in game coordinates
@@ -184,6 +194,9 @@ class area_map {
   object_id
   add_object(object *obj) noexcept;
 
+  object_id
+  add_static_object(object *obj) noexcept;
+
   void
   register_phys_object(object_id it);
 
@@ -193,6 +206,30 @@ class area_map {
   void
   register_vis_obstacle(object_id it);
   /** @} */
+
+  bool
+  is_phys_object(object_id it) const noexcept
+  { return it.get()->pobjit.has_value(); }
+
+  bool
+  is_phys_obstacle(object_id it) const noexcept
+  { return it.get()->pobsit.has_value(); }
+
+  bool
+  is_vis_obstacle(object_id it) const noexcept
+  { return it.get()->vobsit.has_value(); }
+
+  const phys_object*
+  as_phys_object(object_id it) const
+  { return *it.get()->pobjit.value(); }
+
+  const phys_obstacle*
+  as_phys_obstacle(object_id it) const
+  { return *it.get()->pobsit.value(); }
+
+  const vis_obstacle*
+  as_vis_obstacle(object_id it) const
+  { return *it.get()->vobsit.value(); }
 
   const std::list<phys_obstacle*>&
   get_phys_obstacles() const noexcept
@@ -270,6 +307,13 @@ class area_map {
   eth::value
   dump() const;
 
+  template <typename Yield> void
+  scan_vicinity(const circle &circ, Yield&& yield) const;
+
+  private:
+  void
+  _put_on_vicinity_grid(const object_id &id, bool is_static);
+
   private:
   sdl_environment &m_sdl;
   SDL_Texture *m_bgtex;
@@ -288,7 +332,7 @@ class area_map {
   std::list<vis_obstacle*> m_vis_obstacles;
 
   boost::optional<grid<bool>> m_static_grid;
-
+  utl::dynamic_grid<object_id> m_vicinity_grid;
   mutable boost::optional<const vision_processor&> m_global_vision;
 
   message_log m_msglog;
@@ -297,5 +341,37 @@ class area_map {
 /** @} group Core */
 
 } // namespace mw
+
+
+
+
+template <typename Yield> void
+mw::area_map::scan_vicinity(const circle &circ, Yield&& yield) const
+{
+  const auto [nx, ny] = m_vicinity_grid.get_dimentions();
+  const double cw = m_width / nx;
+  const double ch = m_height / ny;
+
+  const double adjx = cw * std::round(circ.center.x / cw);
+  const double adjy = ch * std::round(circ.center.y / ch);
+  const double adjr = circ.radius + std::max(cw, ch)/2;
+
+  const size_t ixstart = std::floor((adjx - adjr)/cw);
+  const size_t ixstop = std::floor((adjx + adjr)/cw);
+  const size_t iystart = std::floor((adjy - adjr)/ch);
+  const size_t iystop = std::floor((adjy + adjr)/ch);
+  for (size_t ix = ixstart; ix <= ixstop; ++ix)
+  {
+    for (size_t iy = iystart; iy <= iystop; ++iy)
+    {
+      const rectangle box {{ix*cw, iy*ch}, cw, ch};
+      if (overlap_box_circle(box, circ))
+      {
+        for (const object_id &id : m_vicinity_grid.at(ix, iy))
+          yield(id);
+      }
+    }
+  }
+}
 
 #endif

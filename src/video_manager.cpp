@@ -1,12 +1,11 @@
 #include "video_manager.hpp"
-#include "ui_manager.hpp"
 #include "logging.h"
 #include "gui/menu.hpp"
 #include "color_manager.hpp"
+#include "central_config.hpp"
 
 #include <ether/sandbox.hpp>
 
-#include <sstream>
 #include <vector>
 
 #include <boost/format.hpp>
@@ -23,35 +22,23 @@ mw::fps_guardian_type &mw::fps_guardian = fps_guardian_type::instance();
 mw::video_config&
 mw::video_config::instance()
 {
-  static bool is_first_time = true;
   static video_config self;
-  if (is_first_time)
-  {
-    load_config("/home/pidhii/sandbox/create/madworld/config.eth", self.m_config);
-    is_first_time = false;
-  }
   return self;
 }
 
-void
-mw::video_config::load_config(const std::string &path, config &cfg)
+mw::video_config::video_config()
 {
-  eth::sandbox ether;
-
-  std::ostringstream cmd;
-  cmd << "first $ load '" << path << "'";
-  const eth::value conf = ether(cmd.str());
-
-  cfg.window_size.w = conf["video"]["window_size"][0];
-  cfg.window_size.h = conf["video"]["window_size"][1];
-  cfg.resolution.x = conf["video"]["resolution"][0];
-  cfg.resolution.y = conf["video"]["resolution"][1];
-  cfg.fullscreen = bool(conf["video"]["fullscreen"]);
-  cfg.hardware_acceleration = bool(conf["video"]["hardware_acceleration"]);
-  cfg.vsync = bool(conf["video"]["vsync"]);
-  cfg.fps_limit = conf["video"]["fps_limit"];
-  cfg.font.path = conf["video"]["font"][0].str();
-  cfg.font.point_size = conf["video"]["font"][1];
+  const eth::value conf = mw::central_config::instance().get_video_config();
+  m_config.window_size.w = conf["window_size"][0];
+  m_config.window_size.h = conf["window_size"][1];
+  m_config.resolution.x = conf["resolution"][0];
+  m_config.resolution.y = conf["resolution"][1];
+  m_config.fullscreen = bool(conf["fullscreen"]);
+  m_config.hardware_acceleration = bool(conf["hardware_acceleration"]);
+  m_config.vsync = bool(conf["vsync"]);
+  m_config.fps_limit = conf["fps_limit"];
+  m_config.font.path = conf["font"][0].str();
+  m_config.font.point_size = conf["font"][1];
 }
 
 eth::value
@@ -206,11 +193,11 @@ mw::video_manager::make_new_settings()
 
   auto on_hover_begin = [=] (MWGUI_CALLBACK_ARGS) {
     self->set_string(make_hl_label_string(self->get_string().get_text()));
-    return menu_callback_request::nothing;
+    return 0;
   };
   auto on_hover_end = [=] (MWGUI_CALLBACK_ARGS) {
     self->set_string(make_label_string(self->get_string().get_text()));
-    return menu_callback_request::nothing;
+    return 0;
   };
 
   vertical_layout *menu_layout = new vertical_layout {m_sdl};
@@ -245,7 +232,7 @@ mw::video_manager::make_new_settings()
       boost::format fmt_dxd {"%dx%d"};
       self->set_text((fmt_dxd % cfg.window_size.w % cfg.window_size.h).str());
     }
-    return menu_callback_request::nothing;
+    return 0;
   });
   window_size_text_entry
     ->set_text((fmt_dxd % cfg.window_size.w % cfg.window_size.h).str());
@@ -254,7 +241,7 @@ mw::video_manager::make_new_settings()
   window_size_component->on("clicked", [=] (MWGUI_CALLBACK_ARGS) {
     menu->attach_keyboard_receiver(window_size_text_entry);
     window_size_text_entry->set_cursor(true);
-    return menu_callback_request::nothing;
+    return 0;
   });
   window_size_component->forward("hover-begin", window_size_label);
   window_size_component->forward("hover", window_size_label);
@@ -294,7 +281,7 @@ mw::video_manager::make_new_settings()
       boost::format fmt_dxd {"%dx%d"};
       self->set_text((fmt_dxd % cfg.resolution.x % cfg.resolution.y).str());
     }
-    return menu_callback_request::nothing;
+    return 0;
   });
   resolution_text_entry->
     set_text((fmt_dxd % cfg.resolution.x % cfg.resolution.y).str());
@@ -303,7 +290,7 @@ mw::video_manager::make_new_settings()
   resolution_component->on("clicked", [=] (MWGUI_CALLBACK_ARGS) {
     menu->attach_keyboard_receiver(resolution_text_entry);
     resolution_text_entry->set_cursor(true);
-    return menu_callback_request::nothing;
+    return 0;
   });
   resolution_component->forward("hover-begin", resolution_label);
   resolution_component->forward("hover", resolution_label);
@@ -342,7 +329,7 @@ mw::video_manager::make_new_settings()
       cfg.fullscreen = false;
       fullscreen_value_label->set_string(make_boolean_string("false"));
     }
-    return menu_callback_request::nothing;
+    return 0;
   });
   fullscreen_component->forward("hover-begin", fullscreen_label);
   fullscreen_component->forward("hover", fullscreen_label);
@@ -408,7 +395,7 @@ mw::video_manager::make_new_settings()
       boost::format fmt_d {"%d"};
       self->set_text((fmt_d % cfg.fps_limit).str());
     }
-    return menu_callback_request::nothing;
+    return 0;
   });
   fps_limit_text_entry->set_text((fmt_d % cfg.fps_limit).str());
 
@@ -416,7 +403,7 @@ mw::video_manager::make_new_settings()
   fps_limit_component->on("clicked", [=] (MWGUI_CALLBACK_ARGS) {
     menu->attach_keyboard_receiver(fps_limit_text_entry);
     fps_limit_text_entry->set_cursor(true);
-    return menu_callback_request::nothing;
+    return 0;
   });
   fps_limit_component->forward("hover-begin", fps_limit_lable);
   fps_limit_component->forward("hover", fps_limit_lable);
@@ -447,7 +434,7 @@ mw::video_manager::make_new_settings()
     ->on("clicked", [menu] (MWGUI_CALLBACK_ARGS) {
       self->send("hover-end", 0);
       menu->close();
-      return menu_callback_request::exit_loop;
+      return 0;
     })
     ->on("hover-begin", on_hover_begin)
     ->on("hover-end", on_hover_end);

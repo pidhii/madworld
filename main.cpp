@@ -1,8 +1,6 @@
 #include "logging.h"
 #include "geometry.hpp"
 #include "area_map.hpp"
-#include "projectiles.hpp"
-#include "walls.hpp"
 #include "player.hpp"
 #include "npc.hpp"
 #include "game_manager.hpp"
@@ -10,22 +8,20 @@
 #include "video_manager.hpp"
 #include "map_editor.hpp"
 #include "fps_display.hpp"
-#include "algorithms/forest.hpp"
 #include "textures.hpp"
 #include "gui/menu.hpp"
 #include "gui/composer.hpp"
-#include "map_generation.hpp"
+#include "controls/keyboard_controller.hpp"
+#include "central_config.hpp"
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL2_gfxPrimitives.h>
 
+#include <SDL2/SDL_keyboard.h>
 #include <ether/sandbox.hpp>
 
 #include <vector>
 #include <list>
-#include <optional>
-#include <random>
-#include <iostream>
 
 #include <boost/format.hpp>
 
@@ -56,8 +52,7 @@ _make_npc_ctl_hud(mw::sdl_environment &sdl,
   auto add_heatmap_hud = [=] () -> void {
       // check if there exists a heatmap for this NPC
       mw::simple_ai *npcai = nullptr;
-      if (npcptr and npcptr->get_mind() and
-          (npcai = dynamic_cast<mw::simple_ai*>(npcptr->get_mind())))
+      if (npcptr and (npcai = dynamic_cast<mw::simple_ai*>(&npcptr->get_mind())))
       { // enable the heatmap
         mw::custom_hud *heatmaphud = new mw::custom_hud;
         heatmaphud->on_update([=] (mw::heads_up_display &hud) -> void {
@@ -101,8 +96,7 @@ _make_npc_ctl_hud(mw::sdl_environment &sdl,
   mw::radio_entry *chase_radio = new mw::radio_entry {sdl, 0xFF33AA33, 8};
   chase_radio->on("update", [=] (MWGUI_CALLBACK_ARGS) -> int {
       mw::simple_ai *npcai = nullptr;
-      if (npcptr and npcptr->get_mind() and
-          (npcai = dynamic_cast<mw::simple_ai*>(npcptr->get_mind())))
+      if (npcptr and (npcai = dynamic_cast<mw::simple_ai*>(&npcptr->get_mind())))
         self->set_state(npcai->get_chase_player());
       else
         self->set_state(false);
@@ -110,8 +104,7 @@ _make_npc_ctl_hud(mw::sdl_environment &sdl,
   });
   chase_radio->on("clicked", [=] (MWGUI_CALLBACK_ARGS) -> int {
       mw::simple_ai *npcai = nullptr;
-      if (npcptr and npcptr->get_mind() and
-          (npcai = dynamic_cast<mw::simple_ai*>(npcptr->get_mind())))
+      if (npcptr and (npcai = dynamic_cast<mw::simple_ai*>(&npcptr->get_mind())))
       {
         const bool newstate = !self->get_state();
         npcai->set_chase_player(newstate);
@@ -194,9 +187,9 @@ class npc_access_hud: public mw::hud_component {
   {
     mw::rectangle box;
     _get_gui_box(box);
-    m_gui->send("hover-begin", mw::pack_hover(mw::pt2d_i(box.offset), at));
-    m_gui->send("clicked", 0);
-    m_gui->send("hover-end", 0);
+    m_gui->send("hover-begin", std::any(at - mw::pt2d_i(box.offset)));
+    m_gui->send("clicked", {});
+    m_gui->send("hover-end", {});
   }
 
   private:
@@ -310,7 +303,6 @@ the_main(int argc, char **argv)
     npcs.push_back(npc->get_safe_pointer());
   }
 
-
   mw::ui_manager uiman {sdl};
 
   TTF_Font *font = vman.get_font();
@@ -318,7 +310,25 @@ the_main(int argc, char **argv)
     TTF_OpenFont(mw::video_config::instance().get_config().font.path.c_str(),10);
 
   mw::vertical_layout *menu_layout = new mw::vertical_layout {sdl};
-  mw::basic_menu *main_menu = new mw::basic_menu {sdl, menu_layout};
+  std::shared_ptr<mw::basic_menu> main_menu = std::make_shared<mw::basic_menu>(sdl, menu_layout);
+
+  mw::keyboard_controller kbrd {sdl};
+  const eth::value &inputcfg =
+    mw::central_config::instance().get_controls_config();
+  kbrd.make_button("menu", SDL_GetScancodeFromName("escape"));
+  kbrd.make_button("zoom-in", SDL_GetScancodeFromName("="), mw::keyboard_controller::shift);
+  kbrd.make_button("zoom-out", SDL_GetScancodeFromName("-"));
+  kbrd.make_button("zoom-reset", SDL_GetScancodeFromName("="));
+  kbrd.make_button("camera-left", SDL_GetScancodeFromName("left"));
+  kbrd.make_button("camera-right", SDL_GetScancodeFromName("right"));
+  kbrd.make_button("camera-up", SDL_GetScancodeFromName("up"));
+  kbrd.make_button("camera-down", SDL_GetScancodeFromName("down"));
+  kbrd.make_button("camera-center", SDL_GetScancodeFromName("space"));
+  kbrd.make_button("fow-toggle", SDL_GetScancodeFromName("`"));
+  kbrd.make_analog("move-x-axis", SDL_GetScancodeFromName("d"), SDL_GetScancodeFromName("a"));
+  kbrd.make_analog("move-y-axis", SDL_GetScancodeFromName("s"), SDL_GetScancodeFromName("w"));
+  kbrd.make_left_mouse_button("ability1");
+  kbrd.make_left_mouse_button("pointer-click");
 
   mw::composer guicomp {sdl, font};
   menu_layout->add_component(
@@ -326,8 +336,9 @@ the_main(int argc, char **argv)
     ->on("clicked", [&] (MWGUI_CALLBACK_ARGS) {
       info("starting game_manager");
       self->set_hover(false);
-      mw::game_manager *gman = new mw::game_manager {sdl, map};
-      gman->set_player(*player1);
+      std::shared_ptr<mw::game_manager> gman =
+        std::make_shared<mw::game_manager>(sdl, map, kbrd);
+      gman->set_player(*player1, 20);
 
       mw::sdl_string_factory hud_strfac {small_font};
 
@@ -350,7 +361,7 @@ the_main(int argc, char **argv)
       }
 
       uiman.add_layer(gman);
-      return mw::menu_callback_request::exit_loop;
+      return 0;
     })
   );
   menu_layout->add_component(
@@ -358,16 +369,17 @@ the_main(int argc, char **argv)
     ->on("clicked", [&] (MWGUI_CALLBACK_ARGS) {
       info("starting map_editor");
       self->set_hover(false);
-      uiman.add_layer(new mw::map_editor {sdl, map});
-      return mw::menu_callback_request::exit_loop;
+      uiman.add_layer(std::make_shared<mw::map_editor>(sdl, map));
+      return 0;
     })
   );
   menu_layout->add_component(
     guicomp.make_button("Settings")
     ->on("clicked", [&] (MWGUI_CALLBACK_ARGS) {
       self->set_hover(false);
-      uiman.add_layer(mw::video_manager::instance().make_new_settings());
-      return mw::menu_callback_request::exit_loop;
+      uiman.add_layer(std::shared_ptr<mw::ui_layer> {
+          mw::video_manager::instance().make_new_settings()});
+      return 0;
     })
   );
   const int point_size =
@@ -378,16 +390,19 @@ the_main(int argc, char **argv)
     ->on("clicked", [&] (MWGUI_CALLBACK_ARGS) {
       self->set_hover(false);
       info("quit");
-      uiman.remove_layer(main_menu->get_id());
-      return mw::menu_callback_request::exit_loop;
+      main_menu->close();
+      return 0;
     })
   );
+
+  menu_layout->set_min_width(menu_layout->get_width() + 15);
 
   uiman.add_layer(main_menu);
 
   mw::sdl_string_factory fpsstrfac {small_font};
   fpsstrfac.set_fg_color(0xFF00FF00);
-  mw::fps_display *fpsdisp = new mw::fps_display {sdl, fpsstrfac, 5, 5};
+  std::shared_ptr<mw::fps_display> fpsdisp =
+    std::make_shared<mw::fps_display>(sdl, fpsstrfac, 5, 5);
   fpsdisp->set_format("FPS: %d");
   uiman.add_float(fpsdisp);
 

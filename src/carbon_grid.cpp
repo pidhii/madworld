@@ -2,6 +2,7 @@
 #include "gui/sdl_string.hpp"
 
 #include <cstring>
+#include <algorithm>
 
 
 mw::carbon_grid::carbon_grid(int w, int h)

@@ -62,7 +62,7 @@ wall_builder::wall_builder(mw::sdl_environment &sdl, mw::area_map &map)
   build_button->on("clicked", [=] (MWGUI_CALLBACK_ARGS) {
     // create walls
     mw::basic_wall<>* wall = new mw::basic_wall<> {m_vertices};
-    const mw::object_id wallid = m_map.add_object(wall);
+    const mw::object_id wallid = m_map.add_static_object(wall);
     m_map.register_phys_obstacle(wallid);
     m_map.register_vis_obstacle(wallid);
     // clear vertices and reset button state

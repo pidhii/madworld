@@ -1,17 +1,18 @@
-open 'std'
+open 'list' in
 
 let more_walls =
-  let nx = 10 and ny = 10
+  let nx = 10 and ny = 10 in
   --let nx = 1 and ny = 1
-  let xoffset = 60 and yoffset = 10
-  let width = 2 and height = 2
-  let xstep = width + 8 and ystep = height + 8
-  let fill_color = 4294967295 and edge_color = 4294967295
-  [0 .. nx-1] | flat_map $ i ->
-    [0 .. ny-1] | map $ j ->
-      let x0 = xoffset + xstep*i
-      let y0 = yoffset + ystep*j
-      `filled_wall {
+  let xoffset = 60 and yoffset = 10 in
+  let width = 2 and height = 2 in
+  let xstep = width + 8 and ystep = height + 8 in
+  let fill_color = 0xFFFFFFFF and edge_color = 0xFFFFFFFF in
+  range (0 .. nx-1) | flat_map (fn i ->
+    range (0 .. ny-1) | map (fn j ->
+      let x0 = xoffset + xstep*i in
+      let y0 = yoffset + ystep*j in
+      {
+        tag = 'filled_wall',
         fill_color,
         edge_color,
         vertices = [
@@ -21,22 +22,29 @@ let more_walls =
           (x0, y0+height),
         ]
       }
+    )
+  ) | list
+in
 
-let old_walls =  [
-  `filled_wall {
-    fill_color = 4294967295,
-    edge_color = 4294967295,
-    vertices = [(50,50),(50,30),(30,30)]
-  },
-  `basic_wall {
-    color = 4294967295,
-    ends_spec = "solid_ends",
-    vertices = [(0,0),(0,200),(200,200),(200,0),(0,0)]
-  },
-]
+let old_walls =
+  [
+    {
+      tag = 'filled_wall',
+      fill_color = 0xFFFFFFFF,
+      edge_color = 0xFFFFFFFF,
+      vertices = [(50,50),(50,30),(30,30)]
+    },
+    {
+      tag = 'basic_wall',
+      color = 0xFFFFFFFF,
+      ends_spec = "solid_ends",
+      vertices = [(0,0),(0,200),(200,200),(200,0),(0,0)]
+    }
+  ]
+in
 
 {
   size = (200, 200),
   has_walls = true,
-  obstacles = flatten [old_walls, more_walls]
+  obstacles = flatten [old_walls, more_walls] | list
 }

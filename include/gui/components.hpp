@@ -14,6 +14,7 @@
 #include <map>
 #include <functional>
 #include <set>
+#include <any>
 
 
 namespace mw {
@@ -40,14 +41,14 @@ struct component {
   draw(const pt2d_i &at) const = 0;
 
   virtual int
-  send(const std::string &what, signal_data data) = 0;
+  send(const std::string &what, const std::any &data = std::any()) = 0;
 
   protected:
   sdl_environment &m_sdl;
 };
 
 
-#define MWGUI_CALLBACK_ARGS auto *self, const std::string &what, mw::signal_data data
+#define MWGUI_CALLBACK_ARGS auto *self, const std::string &what, const std::any &data
 
 namespace detail {
 
@@ -57,9 +58,10 @@ namespace detail {
       const std::optional<color_t> &border_color);
 
   struct _forwarder {
+    explicit
     _forwarder(component *_c): c {_c} { }
     int
-    operator () (void*, const std::string &what, mw::signal_data data)
+    operator () (void*, const std::string &what, const std::any &data)
     { return c->send(what, data); }
     component *c;
   };
@@ -80,7 +82,7 @@ class enriched: public Base {
   { }
 
   virtual
-  ~enriched() = default;
+  ~enriched() override = default;
 
   enriched*
   set_left_margin(int val) noexcept
@@ -148,16 +150,22 @@ class enriched: public Base {
   }
 
   virtual int
-  send(const std::string &what, signal_data data) override
+  send(const std::string &what, const std::any &data) override
   {
     if (m_ignore_signals)
       return 0;
 
     if (what == "hover" or what == "hover-begin" or what == "clicked")
     {
-      const vec2d_i oldval = unpack_hover(data.u64);
-      const vec2d_i newval = oldval - vec2d_i(m_left_pad, m_top_pad);
-      return _send(what, pack_vec(newval));
+      try {
+        const vec2d_i oldval = std::any_cast<vec2d_i>(data);
+        const vec2d_i newval = oldval - vec2d_i(m_left_pad, m_top_pad);
+        return _send(what, std::any(newval));
+      }
+      catch (const std::bad_any_cast&)
+      {
+        return _send(what, std::any(vec2d_i(0, 0)));
+      }
     }
     else
       return _send(what, data);
@@ -173,7 +181,7 @@ class enriched: public Base {
 
   private:
   int
-  _send(const std::string &what, signal_data data)
+  _send(const std::string &what, const std::any &data)
   {
     auto callback_it = m_callbacks.find(what);
     if (callback_it != m_callbacks.end())
@@ -185,7 +193,7 @@ class enriched: public Base {
   private:
   std::map<
     std::string,
-    std::function<int(enriched*, const std::string&, mw::signal_data)>
+    std::function<int(enriched*, const std::string&, const std::any&)>
   > m_callbacks;
   int m_left_pad, m_right_pad, m_top_pad, m_bottom_pad;
   std::optional<int> m_min_width, m_min_height;
@@ -203,7 +211,7 @@ class label_base: public component {
   label_base(sdl_environment &sdl, const sdl_string &str);
 
   virtual
-  ~label_base() = default;
+  ~label_base() override = default;
 
   const sdl_string&
   get_string() const noexcept;
@@ -221,7 +229,7 @@ class label_base: public component {
   draw(const pt2d_i &at) const override;
 
   virtual int
-  send(const std::string &what, signal_data data) override;
+  send(const std::string &what, const std::any &data) override;
 
   private:
   sdl_string m_str;
@@ -238,7 +246,7 @@ class button_base: public component {
   { }
 
   virtual
-  ~button_base()
+  ~button_base() override
   { delete m_normalc; delete m_hoverc; }
 
   void
@@ -258,7 +266,7 @@ class button_base: public component {
   { return m_ishover ? m_hoverc->draw(at) : m_normalc->draw(at); }
 
   virtual int
-  send(const std::string &what, signal_data data) override
+  send(const std::string &what, const std::any &data) override
   {
     if (what == "hover-begin" or what == "hover")
     {
@@ -290,7 +298,7 @@ class text_entry_base: public component {
       int height);
 
   virtual
-  ~text_entry_base() = default;
+  ~text_entry_base() override = default;
 
   const std::string&
   get_text() const noexcept
@@ -315,7 +323,7 @@ class text_entry_base: public component {
   draw(const pt2d_i &at) const override;
 
   virtual int
-  send(const std::string &what, signal_data data) override;
+  send(const std::string &what, const std::any &data) override;
 
   private:
   TTF_Font *m_font;
@@ -335,7 +343,7 @@ class message_log_base: public component {
       int height);
 
   virtual
-  ~message_log_base() = default;
+  ~message_log_base() override = default;
 
   void
   add_message(const std::string &msg);
@@ -362,7 +370,7 @@ class message_log_base: public component {
   draw(const pt2d_i &at) const override;
 
   virtual int
-  send(const std::string &what, signal_data data) override
+  send(const std::string &, const std::any &) override
   { return 0; }
 
   private:
@@ -381,7 +389,7 @@ class linear_layout_base: public component {
 
   using component::component;
   virtual
-  ~linear_layout_base();
+  ~linear_layout_base() override;
 
   entry_id
   add_component(component *c) noexcept
@@ -442,7 +450,7 @@ class linear_layout_base: public component {
   draw(const pt2d_i &at) const override;
 
   virtual int
-  send(const std::string &what, signal_data data) override;
+  send(const std::string &what, const std::any &data) override;
 
   protected:
   virtual pt2d_i
@@ -458,11 +466,11 @@ using linear_layout = enriched<linear_layout_base>;
 class horisontal_layout: public linear_layout {
   public:
   using linear_layout::linear_layout;
-  virtual ~horisontal_layout() = default;
+  virtual ~horisontal_layout() override = default;
 
   private:
   pt2d_i
-  _next(const pt2d_i &prevpos, const component *prevc) const
+  _next(const pt2d_i &prevpos, const component *prevc) const override
   { return {prevpos.x + prevc->get_width(), prevpos.y}; }
 }; // mw::gui::horisontal_layout
 
@@ -471,11 +479,11 @@ class vertical_layout: public linear_layout {
   public:
   using linear_layout::linear_layout;
   virtual
-  ~vertical_layout() = default;
+  ~vertical_layout() override = default;
 
   private:
   pt2d_i
-  _next(const pt2d_i &prevpos, const component *prevc) const
+  _next(const pt2d_i &prevpos, const component *prevc) const override
   { return {prevpos.x, prevpos.y + prevc->get_height()}; }
 }; // mw::gui::vertical_layout
 
@@ -495,11 +503,11 @@ class padding final: public component {
   { return m_height; }
 
   void
-  draw(const pt2d_i &at) const override
+  draw(const pt2d_i &) const override
   { }
 
   int
-  send(const std::string &what, signal_data data) override
+  send(const std::string &, const std::any &) override
   { return 0; }
 
   private:
@@ -507,7 +515,7 @@ class padding final: public component {
 };
 
 
-class radio_entry_base;
+struct radio_entry_base;
 using radio_entry = enriched<radio_entry_base>;
 
 using radio_group_ptr = std::shared_ptr<std::set<radio_entry*>>;
@@ -520,7 +528,7 @@ struct radio_entry_base: public component {
     m_is_on {false}
   { }
 
-  ~radio_entry_base();
+  ~radio_entry_base() override;
 
   void
   set_state(bool val) noexcept
@@ -542,7 +550,7 @@ struct radio_entry_base: public component {
   draw(const pt2d_i &at) const override;
 
   virtual int
-  send(const std::string &what, signal_data data) override
+  send(const std::string &, const std::any &) override
   { return 0; }
 
   private:

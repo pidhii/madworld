@@ -4,7 +4,6 @@
 #include "common.hpp"
 #include "geometry.hpp"
 #include "utl/safe_access.hpp"
-#include "gui/components.hpp"
 
 #include <list>
 #include <vector>

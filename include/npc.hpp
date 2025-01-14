@@ -8,10 +8,17 @@
 #include "body.hpp"
 #include "utl/safe_access.hpp"
 
-#include <unordered_set>
+#include <optional>
 
 
 namespace mw {
+
+struct npc_builder {
+  std::optional<pt2d_d> starting_position;
+  std::optional<double> radius;
+  std::optional<std::unique_ptr<mind>> npc_mind;
+  std::optional<std::unique_ptr<body>> npc_body;
+};
 
 
 class npc: public phys_object, public vis_obstacle, public safe_access<npc> {
@@ -32,40 +39,28 @@ class npc: public phys_object, public vis_obstacle, public safe_access<npc> {
     return m_nickname ? m_nickname.value() : empty_name;
   }
 
-  bool
-  has_mind() const noexcept
-  { return m_mind != nullptr; }
+  const mind&
+  get_mind() const noexcept
+  { return *m_mind; }
+
+  mind&
+  get_mind() noexcept
+  { return *m_mind; }
 
   template <typename Mind, typename ...Args>
   Mind&
   make_mind(Args&& ...args)
   {
-    if (m_mind)
-      delete m_mind;
-    m_mind = new Mind {std::forward<Args>(args)...};
-    return *static_cast<Mind*>(m_mind);
+    m_mind = std::make_unique<Mind>(std::forward<Args>(args)...);
+    return *static_cast<Mind*>(m_mind.get());
   }
-
-  const mind*
-  get_mind() const noexcept
-  { return m_mind; }
-
-  mind*
-  get_mind() noexcept
-  { return m_mind; }
-
-  bool
-  has_body() const noexcept
-  { return m_body != nullptr; }
 
   template <typename Body, typename ...Args>
   Body&
   make_body(Args&& ...args)
   {
-    if (m_body)
-      delete m_body;
-    m_body = new Body {std::forward<Args>(args)...};
-    return *static_cast<Body*>(m_body);
+    m_body = std::make_unique<Body>(std::forward<Args>(args)...);
+    return *static_cast<Body*>(m_body.get());
   }
 
   void
@@ -79,7 +74,7 @@ class npc: public phys_object, public vis_obstacle, public safe_access<npc> {
 
   bool
   is_gone() const override
-  { return has_body() ? m_body->is_dead() : false; }
+  { return m_body->is_dead(); }
 
   void
   get_sights(vision_processor &visproc) const override;
@@ -88,8 +83,8 @@ class npc: public phys_object, public vis_obstacle, public safe_access<npc> {
   draw(const area_map &map, const sight &s) const override;
 
   private:
-  mind *m_mind;
-  body *m_body;
+  std::unique_ptr<mind> m_mind;
+  std::unique_ptr<body> m_body;
   double m_vision_radius;
   double m_speed;
   color_t m_color;

@@ -14,9 +14,6 @@ class color_manager {
   static color_manager&
   instance();
 
-  void
-  load_config(const std::string &path);
-
   color_t
   get_color(const std::string &key) const noexcept
   {
@@ -34,7 +31,7 @@ class color_manager {
   color_manager& operator = (color_manager&&) = delete;
 
   private:
-  color_manager() = default;
+  color_manager();
 
   std::unordered_map<std::string, color_t> m_colors;
 }; // class mw::color_manager

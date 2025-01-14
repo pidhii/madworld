@@ -56,6 +56,8 @@ struct phys_obstacle: public virtual object {
   virtual bool
   overlap_box(const rectangle &box) const = 0;
 
+  virtual pt2d_d
+  sample_point() const = 0;
 }; // struct mw::phys_obstacle
 
 
@@ -90,6 +92,10 @@ class phys_object: public phys_obstacle {
   overlap_box(const rectangle &box) const override
   { return overlap_box_circle(box, {m_position, m_radius}); }
 
+  pt2d_d
+  sample_point() const override
+  { return m_position; }
+
   virtual
   void on_collision(area_map &map, phys_obstacle *obs) { }
 
@@ -114,6 +120,8 @@ class phys_object: public phys_obstacle {
 
 
 struct vis_obstacle: public virtual object {
+  using object::draw;
+
   virtual ~vis_obstacle() = default;
 
   virtual void

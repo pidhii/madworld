@@ -1,5 +1,4 @@
 #include "gui/components.hpp"
-#include "gui/utilities.hpp"
 #include <algorithm>
 
 
@@ -39,7 +38,7 @@ mw::gui::label_base::draw(const pt2d_i &at) const
 { m_str.draw(m_sdl.get_renderer(), at); }
 
 int
-mw::gui::label_base::send(const std::string &what, signal_data data)
+mw::gui::label_base::send(const std::string &what, const std::any &data)
 { return 0; }
 
 
@@ -98,16 +97,16 @@ mw::gui::text_entry_base::draw(const pt2d_i &at) const
 }
 
 int
-mw::gui::text_entry_base::send(const std::string &what, signal_data data)
+mw::gui::text_entry_base::send(const std::string &what, const std::any &data)
 {
   if (what == "keydown")
   {
-    if (isprint(data.c))
+    if (isprint(std::any_cast<int>(data)))
     {
-      m_text.push_back(data.c);
+      m_text.push_back(std::any_cast<int>(data));
       m_str = std::nullopt;
     }
-    else if (data.i == SDLK_BACKSPACE)
+    else if (std::any_cast<int>(data) == SDLK_BACKSPACE)
     {
       if (not m_text.empty())
       {
@@ -115,7 +114,7 @@ mw::gui::text_entry_base::send(const std::string &what, signal_data data)
         m_str = std::nullopt;
       }
     }
-    else if (data.i == SDLK_RETURN)
+    else if (std::any_cast<int>(data) == SDLK_RETURN)
     {
       send("<text_entry>:return", 0);
     }
@@ -222,12 +221,11 @@ mw::gui::linear_layout_base::draw(const pt2d_i &at) const
 }
 
 int
-mw::gui::linear_layout_base::send(const std::string &what,
-    signal_data data)
+mw::gui::linear_layout_base::send(const std::string &what, const std::any &data)
 {
   if (what == "hover-begin" or what == "hover")
   {
-    const vec2d_i hover = unpack_hover(data.u64);
+    const vec2d_i hover = std::any_cast<vec2d_i>(data);
     pt2d_i start {0, 0};
     for (component *c : m_list)
     {
@@ -239,20 +237,20 @@ mw::gui::linear_layout_base::send(const std::string &what,
         {
           if (m_old_hover.value() == c)
           {
-            c->send("hover", pack_hover({start.x, start.y}, {hover.x, hover.y}));
+            c->send("hover", std::any(pt2d_i(hover.x, hover.y) - pt2d_i(start.x, start.y)));
             return 0;
           }
           else
           {
             m_old_hover.value()->send("hover-end", 0);
-            c->send("hover-begin", pack_hover({start.x, start.y}, {hover.x, hover.y}));
+            c->send("hover-begin", std::any(pt2d_i(hover.x, hover.y) - pt2d_i(start.x, start.y)));
             m_old_hover = c;
             return 0;
           }
         }
         else
         {
-          c->send("hover-begin", pack_hover({start.x, start.y}, {hover.x, hover.y}));
+          c->send("hover-begin", std::any(pt2d_i(hover.x, hover.y) - pt2d_i(start.x, start.y)));
           m_old_hover = c;
           return 0;
         }

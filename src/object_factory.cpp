@@ -14,30 +14,28 @@ decode_points(const eth::value &l, std::vector<mw::pt2d_d> &pts)
 mw::object*
 mw::build_object(const eth::value &objdata)
 {
-  const std::string tag = objdata.tag();
-  const eth::value data = objdata.val();
-
+  const std::string tag = objdata["tag"];
   if (tag == "basic_wall")
   {
     std::vector<pt2d_d> vertices;
-    decode_points(data["vertices"], vertices);
-    const std::string ends_spec = data["ends_spec"];
+    decode_points(objdata["vertices"], vertices);
+    const std::string ends_spec = objdata["ends_spec"];
     if (ends_spec == "ignore_ends")
     {
       basic_wall<ignore_ends> *ret = new basic_wall<ignore_ends> {vertices};
-      ret->set_color(data["color"]);
+      ret->set_color(objdata["color"]);
       return ret;
     }
     else if (ends_spec == "better_ends")
     {
       basic_wall<better_ends> *ret = new basic_wall<better_ends> {vertices};
-      ret->set_color(data["color"]);
+      ret->set_color(objdata["color"]);
       return ret;
     }
     else if (ends_spec == "solid_ends")
     {
       basic_wall<solid_ends> *ret = new basic_wall<solid_ends> {vertices};
-      ret->set_color(data["color"]);
+      ret->set_color(objdata["color"]);
       return ret;
     }
     else
@@ -47,10 +45,10 @@ mw::build_object(const eth::value &objdata)
   else if (tag == "filled_wall")
   {
     std::vector<pt2d_d> vertices;
-    decode_points(data["vertices"], vertices);
+    decode_points(objdata["vertices"], vertices);
     filled_wall *ret = new filled_wall {vertices};
-    ret->set_edge_color(data["edge_color"]);
-    ret->set_fill_color(data["fill_color"]);
+    ret->set_edge_color(objdata["edge_color"]);
+    ret->set_fill_color(objdata["fill_color"]);
     return ret;
   }
 

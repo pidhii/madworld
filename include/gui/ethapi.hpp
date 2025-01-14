@@ -9,8 +9,8 @@
 namespace mw {
 inline namespace gui {
 
-eth::value
-make_label_api();
+//eth::value
+//make_label_api();
 
 } // inline namespace mw::gui
 } // namespace mw

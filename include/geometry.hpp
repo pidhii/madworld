@@ -6,8 +6,6 @@
 #ifndef GEOMENTRY_H
 #define GEOMENTRY_H
 
-#include "logging.h"
-
 #include <cmath>
 #include <cfloat>
 #include <ostream>
@@ -29,6 +27,10 @@ struct pt2d {
   pt2d() = default;
   template <typename U>
   explicit operator pt2d<U> () const { return {U(x), U(y)}; }
+  template <typename U, typename V>
+  operator std::tuple<U, V> () noexcept { return {x, y}; }
+  template <typename U, typename V>
+  operator std::tuple<U, V> () const noexcept { return {x, y}; }
   T x, y;
 };
 
@@ -507,15 +509,17 @@ struct quartic {
 } // namespace mw::geo
 } // namespace mw
 
+namespace std {
 /** @ingroup Geometry */
 template <typename T>
 void
-std::swap(mw::geo::vec2d<T> &u, mw::geo::vec2d<T> &v)
+swap(mw::geo::vec2d<T> &u, mw::geo::vec2d<T> &v)
 {
   const mw::geo::vec2d tmp = u;
   u = v;
   v = tmp;
 }
+} // namespace std
 
 /** @ingroup Geometry */
 template <typename T>

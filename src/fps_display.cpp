@@ -1,4 +1,5 @@
 #include "fps_display.hpp"
+#include "video_manager.hpp"
 
 
 void

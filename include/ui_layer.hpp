@@ -3,14 +3,15 @@
 
 #include <list>
 #include <optional>
+#include <memory>
 
 namespace mw {
 
 class ui_manager;
 class ui_layer;
 class ui_float;
-typedef std::list<ui_layer*>::const_iterator ui_layer_id;
-typedef std::list<ui_float*>::const_iterator ui_float_id;
+typedef std::list<std::shared_ptr<ui_layer>>::const_iterator ui_layer_id;
+typedef std::list<std::shared_ptr<ui_float>>::const_iterator ui_float_id;
 
 class ui_layer {
   public:
@@ -26,7 +27,6 @@ class ui_layer {
 
   virtual void draw() const = 0;
   virtual void run_layer(ui_manager&) = 0;
-  virtual void destroy_layer() = 0;
 
   size
   get_size() const noexcept
@@ -54,7 +54,6 @@ class ui_float {
   virtual ~ui_float() = default;
 
   virtual void draw() const = 0;
-  virtual void destroy_float() = 0;
 
   const ui_float_id&
   get_id() const

@@ -18,47 +18,6 @@
 namespace mw {
 inline namespace guiutl {
 
-template <typename T>
-typename std::enable_if<std::is_integral<T>::value, uint64_t>::type
-pack_vec(const vec2d<T> &v)
-{
-  const int32_t x = v.x;
-  const int32_t y = v.y;
-  return ((uint64_t)*reinterpret_cast<const uint32_t*>(&x) << 32)
-        | (uint64_t)*reinterpret_cast<const uint32_t*>(&y);
-}
-
-template <typename T>
-typename std::enable_if<std::is_integral<T>::value, uint64_t>::type
-pack_pt(const pt2d<T> &v)
-{
-  const int32_t x = v.x;
-  const int32_t y = v.y;
-  return ((uint64_t)*reinterpret_cast<const uint32_t*>(&x) << 32)
-        | (uint64_t)*reinterpret_cast<const uint32_t*>(&y);
-}
-
-
-template <typename T>
-typename std::enable_if<std::is_integral<T>::value, vec2d<T>>::type
-unpack_vec(uint64_t val)
-{
-  const uint32_t yraw = val & 0xFFFF;
-  const uint32_t xraw = (val >> 32) & 0xFFFF;
-  T y = *reinterpret_cast<const int32_t*>(&yraw);
-  T x = *reinterpret_cast<const int32_t*>(&xraw);
-  return {x, y};
-}
-
-inline uint64_t
-pack_hover(const pt2d_i &component_pos, const pt2d_i &mouse_pos)
-{ return pack_vec(mouse_pos - component_pos); }
-
-inline vec2d_i
-unpack_hover(uint64_t hover)
-{ return unpack_vec<int>(hover); }
-
-
 //struct placement {
   //public:
   //static placement

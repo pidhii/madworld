@@ -3,10 +3,6 @@
 
 #include "object.hpp"
 
-#include <unordered_set>
-#include <set>
-
-
 namespace mw {
 
 class area_map;
@@ -24,7 +20,8 @@ pushing(double m1, const pt2d_d &o1, vec2d_d &a1,
         double m2, const pt2d_d &o2, vec2d_d &a2);
 
 
-struct physics_processor {
+class physics_processor {
+  public:
   virtual void add_object(phys_object *obj) = 0;
   virtual void add_obstacle(phys_obstacle *obs) = 0;
   virtual void process(area_map &map) = 0;

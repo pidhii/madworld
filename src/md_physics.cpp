@@ -1,7 +1,6 @@
 #include "physics.hpp"
 #include "area_map.hpp"
 
-#include <unordered_map>
 #include <sys/time.h>
 
 
@@ -60,9 +59,8 @@ mw::md_physics::_calc_dynamics(area_map &map, std::vector<obj_dynamics> &dyn) co
     }
 
     // 2) vs other objects
-    for (auto it2 = m_objects.begin(); it2 != m_objects.end(); ++it2)
+    for (phys_object *obj2 : m_objects)
     {
-      phys_object *obj2 = *it2;
       if (obj2 == obj or obj2->is_gone())
         continue;
 

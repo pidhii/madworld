@@ -14,6 +14,8 @@
 #include <vector>
 #include <sstream>
 #include <algorithm>
+#include <stack>
+
 #include <boost/format.hpp>
 
 
@@ -26,6 +28,7 @@ mw::area_map::area_map(sdl_environment &sdl, texture_storage &texstorage)
   m_height {500},
   m_has_walls {false},
   m_texstorage {texstorage},
+  m_vicinity_grid {size_t(m_width) / 5, size_t(m_height) / 5},
   m_msglog {sdl, video_manager::instance().get_font(),
     color_manager::instance()["Normal"], 800, 200}
 { }
@@ -61,12 +64,12 @@ mw::area_map::build_walls()
     const std::vector<pt2d_d> corners = {
       {0, 0}, {m_width, 0}, {m_width, m_height}, {0, m_height}, {0, 0},
     };
-    const object_id id = add_object(new basic_wall<solid_ends> {corners});
+    const object_id id = add_static_object(new basic_wall<solid_ends> {corners});
     register_phys_obstacle(id);
     m_has_walls = true;
   }
   else
-    warning("attempt to build map-walls while already are present");
+    warning("attempt to build map-walls when they are already present");
 }
 
 void
@@ -74,7 +77,7 @@ mw::area_map::load(const std::string &path)
 {
   eth::sandbox ether;
   std::ostringstream cmd;
-  cmd << "first $ load '" << path << "'";
+  cmd << "first(load('" << path << "'))";
   const eth::value conf = ether(cmd.str());
 
   m_width = conf["size"][0];
@@ -85,8 +88,7 @@ mw::area_map::load(const std::string &path)
     try
     {
       object *obj = build_object(l.car());
-      object_id obsid = add_object(obj);
-      obsid.get()->flags |= oflag::is_static;
+      object_id obsid = add_static_object(obj);
 
       if (dynamic_cast<phys_obstacle*>(obj))
         register_phys_obstacle(obsid);
@@ -96,7 +98,7 @@ mw::area_map::load(const std::string &path)
     catch (const std::logic_error &err)
     {
       error("failed to load object (%s)", err.what());
-      throw exception {"faield to load map (" + path + ")"}.in(__func__);
+      throw exception {"failed to load map (" + path + ")"}.in(__func__);
     }
   }
 
@@ -167,12 +169,21 @@ mw::area_map::get_grid() const
   return m_static_grid.value();
 }
 
-
 mw::object_id
 mw::area_map::add_object(object *obj) noexcept
 {
   m_objects.emplace_back(obj);
   return {--m_objects.end()};
+}
+
+mw::object_id
+mw::area_map::add_static_object(object *obj) noexcept
+{
+  m_objects.emplace_back(obj);
+  const object_id id = --m_objects.end();
+  id.get()->flags |= oflag::is_static;
+  _put_on_vicinity_grid(id, true);
+  return id;
 }
 
 void
@@ -475,12 +486,14 @@ mw::area_map::blit_glow_with_shadowcast(SDL_Texture *tex,
   localvision.shadowcast(rend, dstbox, SDL_BLENDMODE_NONE, 0x00000000, map_to_tex);
 
   // apply effects due to global vision
+  std::list<sight> localsights {localvision.get_sights().begin(),
+                                localvision.get_sights().end()};
   if (flags & blit_flags::apply_global_vision and m_global_vision.has_value())
   {
     m_global_vision
       .value()
       .shadowcast(rend, dstbox, SDL_BLENDMODE_NONE, 0x00000000, map_to_tex);
-    m_global_vision.value().apply(localvision);
+    m_global_vision.value().apply(localvision.get_source().center, localsights);
   }
   set_render_target(rend, oldtarget);
 
@@ -499,7 +512,7 @@ mw::area_map::blit_glow_with_shadowcast(SDL_Texture *tex,
   // drow locally visible objects
   if (flags & blit_flags::draw_sights)
   {
-    for (const sight &s : localvision.get_sights())
+    for (const sight &s : localsights)
       s.static_data->obs->draw(*this, s);
   }
 }
@@ -561,3 +574,74 @@ mw::area_map::dump() const
     {"obstacles", obstacles},
   });
 }
+
+void
+mw::area_map::_put_on_vicinity_grid(const object_id &id, bool is_static)
+{
+  const object_entry& ent = *id.get();
+  const phys_obstacle *pobs = dynamic_cast<const phys_obstacle*>(ent.objptr);
+  if (pobs == nullptr)
+  {
+    throw exception {
+      "referred object can not be casted into a phys_object"
+    }.in(__func__);
+  }
+
+  const auto [nx, ny] = m_vicinity_grid.get_dimentions();
+  const double cw = m_width / nx;
+  const double ch = m_height / ny;
+
+  struct compare_points {
+    bool operator () (const pt2d<size_t> &a, const pt2d<size_t> &b) const
+    { return a.x == b.x ? a.y < b.y : a.x < b.x; }
+  };
+  std::set<pt2d<size_t>, compare_points> visited_cells;
+  std::stack<pt2d<size_t>> stack;
+
+  const pt2d_d pt = pobs->sample_point();
+  const size_t ix0 = std::floor(pt.x / cw);
+  const size_t iy0 = std::floor(pt.y / ch);
+  stack.emplace(ix0, iy0);
+  if (is_static)
+    m_vicinity_grid.put_static(ix0, iy0, id);
+  else
+    m_vicinity_grid.put(ix0, iy0, id);
+
+  while (not stack.empty())
+  {
+    const auto [ix0, iy0] = stack.top();
+    stack.pop();
+
+    for (int dx : {-1, 0, +1})
+    {
+      if ((ix0 == 0 and dx == -1) or
+          (ix0 == nx-1 and dx == +1))
+        continue;
+
+      for (int dy : {-1, 0, +1})
+      {
+        if ((iy0 == 0 and dy == -1) or
+            (iy0 == ny-1 and dy == +1))
+          continue;
+
+        const size_t ix = ix0 + dx;
+        const size_t iy = iy0 + dy;
+
+        if (visited_cells.find({ix, iy}) == visited_cells.end())
+        {
+          const rectangle cellbox {{ix*cw, iy*ch}, cw, ch};
+          if (pobs->overlap_box(cellbox))
+          {
+            stack.emplace(ix, iy);
+            if (is_static)
+              m_vicinity_grid.put_static(ix, iy, id);
+            else
+              m_vicinity_grid.put(ix, iy, id);
+          }
+          visited_cells.emplace(ix, iy);
+        }
+      }
+    }
+  }
+}
+
