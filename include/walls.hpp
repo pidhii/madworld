@@ -143,7 +143,7 @@ class basic_wall: public phys_obstacle, public vis_obstacle {
   draw(const area_map &map, const sight &s) const override
   {
     SDL_Renderer *rend = map.get_sdl().get_renderer();
-    const line_segment &wallline = s.static_data->line;
+    const line_segment &wallline = s.static_data.line;
     const double t1 = s.sight_data.line.t1;
     const double t2 = s.sight_data.line.t2;
     const pt2d_i start = map.point_to_pixels(wallline(t1));

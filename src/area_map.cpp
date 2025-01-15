@@ -5,9 +5,6 @@
 #include "vision.hpp"
 #include "textures.hpp"
 #include "physics.hpp"
-#include "npc.hpp"
-
-#include "SDL2/SDL2_gfxPrimitives.h"
 
 #include <ether/sandbox.hpp>
 
@@ -342,7 +339,7 @@ mw::area_map::draw_visible(const vision_processor &local_vision,
 
   // draw obstacles within local vision
   for (const sight &s : local_vision.get_sights())
-    s.static_data->obs->draw(*this, s);
+    s.static_data.obs->draw(*this, s);
 
   m_global_vision = boost::none;
 }
@@ -486,14 +483,16 @@ mw::area_map::blit_glow_with_shadowcast(SDL_Texture *tex,
   localvision.shadowcast(rend, dstbox, SDL_BLENDMODE_NONE, 0x00000000, map_to_tex);
 
   // apply effects due to global vision
-  std::list<sight> localsights {localvision.get_sights().begin(),
-                                localvision.get_sights().end()};
+  vision_processor::sight_container localsights {localvision.get_sights().begin(),
+                                                 localvision.get_sights().end()};
   if (flags & blit_flags::apply_global_vision and m_global_vision.has_value())
   {
     m_global_vision
       .value()
       .shadowcast(rend, dstbox, SDL_BLENDMODE_NONE, 0x00000000, map_to_tex);
-    m_global_vision.value().apply(localvision.get_source().center, localsights);
+    const bool foreignsource =
+      localvision.get_source().center != m_global_vision->get_source().center;
+    m_global_vision.value().apply(foreignsource, localsights);
   }
   set_render_target(rend, oldtarget);
 
@@ -513,7 +512,7 @@ mw::area_map::blit_glow_with_shadowcast(SDL_Texture *tex,
   if (flags & blit_flags::draw_sights)
   {
     for (const sight &s : localsights)
-      s.static_data->obs->draw(*this, s);
+      s.static_data.obs->draw(*this, s);
   }
 }
 

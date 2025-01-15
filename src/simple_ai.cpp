@@ -49,7 +49,7 @@ mw::simple_ai::sync_vision(const area_map &map)
   for (const sight &s : m_vision.visproc.get_sights())
   {
     //info("see %p", s.static_data->obs);
-    const player *plyr = dynamic_cast<const player*>(s.static_data->obs);
+    const player *plyr = dynamic_cast<const player*>(s.static_data.obs);
     if (plyr)
     {
       //info("see player");

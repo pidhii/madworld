@@ -1,9 +1,6 @@
 #include "npc.hpp"
-#include "player.hpp"
-#include "logging.h"
 
 #include <sstream>
-#include <iostream>
 
 #include <boost/format.hpp>
 

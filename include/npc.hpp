@@ -34,7 +34,8 @@ class npc: public phys_object, public vis_obstacle, public safe_access<npc> {
 
   double get_vision_radius() const noexcept { return m_vision_radius; }
   double get_speed() const noexcept { return m_speed; }
-  const std::string& get_nickname() const noexcept {
+  const std::string& get_nickname() const noexcept
+  {
     static const std::string empty_name = "";
     return m_nickname ? m_nickname.value() : empty_name;
   }
@@ -70,7 +71,7 @@ class npc: public phys_object, public vis_obstacle, public safe_access<npc> {
   update(area_map &map, int n_ticks_passed) override;
 
   void
-  receive_hit(area_map &map, const hit &hit);
+  receive_hit(area_map &map, const hit &hit) override;
 
   bool
   is_gone() const override

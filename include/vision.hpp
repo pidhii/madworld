@@ -13,7 +13,6 @@
 
 #include <SDL2/SDL.h>
 
-#include <memory>
 #include <list>
 #include <vector>
 
@@ -44,24 +43,10 @@ fix_angle(double phi) noexcept
  * @brief Storage for sight information on some shape.
  */
 struct sight {
-  enum tag_type { circle, line };
-
-  struct static_data_type {
-    static_data_type(const mw::circle &c): circle {c} { }
-    static_data_type(const line_segment &l): line {l} { }
-    union {
-      mw::circle circle;
-      line_segment line;
-    };
-    qword aux_data;
-    const vis_obstacle *obs; // TODO: change this to a void-pointer
-  };
-
-
-  tag_type tag;
+  enum tag_type : uint8_t { circle, line };
 
   union sight_data_type {
-    struct circle_sight_data {
+    struct circle_sight_data_type {
       /**
        * @{
        * @brief Directional angles defining visible segment of the circle.
@@ -77,7 +62,7 @@ struct sight {
       /** @} */
     } circle;
 
-    struct line_sight_data {
+    struct line_sight_data_type {
       /**
        * @{
        * @brief "Time points" defining an interval of the line covered by the
@@ -88,9 +73,19 @@ struct sight {
       double t1, t2;
       /** @} */
     } line;
-  } sight_data;
+  };
 
-  std::shared_ptr<static_data_type> static_data;
+  struct static_data_type {
+    union {
+      mw::circle circle; // 3 x 8 bytes
+      line_segment line; // 4 x 8 bytes
+    };
+    const vis_obstacle *obs; // TODO: change this to a void-pointer
+    qword aux_data;
+  };
+
+  static_data_type static_data; // 6 x 8 = 48 bytes
+  sight_data_type sight_data; // 2 x 8 = 16 bytes
 
   /**
    * @{
@@ -99,10 +94,21 @@ struct sight {
    * @details Obscured segment of sight is then obtained as a counter-clockwise
    * rotation from @ref sight.phi1 to @ref sight.phi2.
    */
-  double phi1, phi2;
-  bool is_transparent = false;
+  double phi1, phi2; // 2 x 8 = 16 bytes
   /** @} */
+
+  tag_type tag; // 1 byte
+  bool is_transparent = false; // 1 byte
 };
+static_assert(sizeof(sight) == 88);
+static_assert(alignof(sight) == 8);
+
+inline bool
+same_identity(const sight &a, const sight &b)
+{
+  return a.static_data.obs == b.static_data.obs
+     and a.static_data.aux_data == b.static_data.aux_data;
+}
 
 /**
  * @brief Compute sight on a circle.
@@ -361,8 +367,9 @@ class vision_processor {
   static constexpr char class_name[] = "mw::vision_processor";
   using exception = scoped_exception<class_name>;
 
-  using iterator = std::list<sight>::iterator;
-  using const_iterator = std::list<sight>::const_iterator;
+  using sight_container = std::vector<sight>;
+  using iterator = sight_container::iterator;
+  using const_iterator = sight_container::const_iterator;
 
   vision_processor()
   : m_curobs {nullptr},
@@ -432,10 +439,10 @@ class vision_processor {
   get_sights() noexcept
   { return sights_view {*this}; }
 
-  template <typename Compare>
-  void
-  sort_sights(Compare cmp)
-  { m_sights.sort(cmp); }
+  //template <typename Compare>
+  //void
+  //sort_sights(Compare cmp)
+  //{ m_sights.sort(cmp);a }
 
   template <typename Iterator>
   void
@@ -484,13 +491,13 @@ class vision_processor {
   process();
 
   void
-  apply(const pt2d_d &tgtsrc, std::list<sight> &tgtsights) const;
+  apply(bool foreignsource, sight_container &tgtsights) const;
 
   [[deprecated]] void
   apply(vision_processor &other) const
   {
     other.m_source = m_source;
-    apply(other.get_source().center, other.m_sights);
+    apply(get_source().center != other.get_source().center, other.m_sights);
   }
 
   void
@@ -502,15 +509,15 @@ class vision_processor {
   }
 
   void
-  add_sight(const sight &s, qword aux_data) noexcept
+  add_sight(sight &s, qword aux_data) noexcept
   {
-    s.static_data->aux_data = aux_data;
+    s.static_data.aux_data = aux_data;
     if (m_curobs == nullptr)
     {
       error("m_currobs == (null)");
       abort();
     }
-    s.static_data->obs = m_curobs;
+    s.static_data.obs = m_curobs;
     m_sights.emplace_back(s);
   }
 
@@ -526,7 +533,7 @@ class vision_processor {
   _load_obstacle(const vis_obstacle *obs);
 
   std::optional<circle> m_source;
-  std::list<sight> m_sights;
+  sight_container m_sights;
   const vis_obstacle *m_curobs;
   const vis_obstacle *m_ignore;
 };

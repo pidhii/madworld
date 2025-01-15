@@ -38,7 +38,7 @@ struct _scanner {
   const double r_scan, r_update, decay_factor, base, extra;
   mw::vec2d_d pull;
   std::list<box_sight_data> bsds;
-  std::list<mw::sight> sights;
+  mw::vision_processor::sight_container sights;
 
   _scanner(const mw::vision_processor &visproc, double r_scan,
       double r_update, double decay_factor, double base,
@@ -59,12 +59,12 @@ struct _scanner {
 
     const mw::pt2d_d source = visproc.get_source().center;
 
-    visproc.apply(source, sights);
+    visproc.apply(false, sights);
     for (mw::sight &s : sights)
     {
       box_sight_data &bsd =
         *const_cast<box_sight_data*>(
-            reinterpret_cast<const box_sight_data*>(s.static_data->obs));
+            reinterpret_cast<const box_sight_data*>(s.static_data.obs));
 
       if (bsd.is_processed)
         continue;
@@ -116,7 +116,7 @@ struct _scanner {
       }
 
       bsds.emplace_back(gw.get_box(), gw.get_value_ref().second);
-      s.static_data->obs = reinterpret_cast<mw::vis_obstacle*>(&bsds.back());
+      s.static_data.obs = reinterpret_cast<mw::vis_obstacle*>(&bsds.back());
       sights.emplace_back(s);
     }
     else

@@ -1,6 +1,7 @@
 #include "vision.hpp"
 #include "object.hpp"
 #include "exceptions.hpp"
+#include "logging.h"
 
 #include <SDL2/SDL2_gfxPrimitives.h>
 
@@ -51,8 +52,8 @@ mw::cast_sight(const circle &src, const circle &circ, sight &res) noexcept
     //std::swap(res.sight_data.circle.cphi1, res.sight_data.circle.cphi2);
   //}
 
-  res.static_data = std::make_shared<sight::static_data_type>(circ);
   res.tag = sight::circle;
+  res.static_data.circle = circ;
   return true;
 }
 
@@ -154,7 +155,7 @@ l_return_true:
     std::swap(res.sight_data.line.t1, res.sight_data.line.t2);
   }
   res.tag = sight::line;
-  res.static_data = std::make_shared<sight::static_data_type>(line);
+  res.static_data.line = line;
   return true;
 }
 
@@ -163,8 +164,8 @@ static inline bool
 _is_circle_before_circle(const mw::pt2d_d &source, const mw::sight& a,
     const mw::sight &b) noexcept
 {
-  const double r12 = mag2(a.static_data->circle.center - source);
-  const double r22 = mag2(b.static_data->circle.center - source);
+  const double r12 = mag2(a.static_data.circle.center - source);
+  const double r22 = mag2(b.static_data.circle.center - source);
   return r12 < r22;
 }
 
@@ -175,38 +176,38 @@ _is_circle_before_line(const mw::pt2d_d &source, const mw::sight& a,
 {
   using namespace mw;
 
-  const line_segment &line = b.static_data->line;
+  const line_segment &line = b.static_data.line;
   const pt2d_d p1 = line.origin + b.sight_data.line.t1*line.direction;
   const pt2d_d p2 = line.origin + b.sight_data.line.t2*line.direction;
   const double p1r2 = mag2(p1 - source);
   const double p2r2 = mag2(p2 - source);
-  const pt2d_d r1 = a.static_data->circle(a.sight_data.circle.cphi1);
-  const pt2d_d r2 = a.static_data->circle(a.sight_data.circle.cphi2);
+  const pt2d_d r1 = a.static_data.circle(a.sight_data.circle.cphi1);
+  const pt2d_d r2 = a.static_data.circle(a.sight_data.circle.cphi2);
   const double r12 = mag2(r1 - source);
   const double r22 = mag2(r2 - source);
   if (contains_inc({a.phi1, a.phi2}, b.phi1))
   {
     const line_segment ray {
       source,
-      b.static_data->line(b.sight_data.line.t1) - source
+      b.static_data.line(b.sight_data.line.t1) - source
     };
     double _;
-    return intersect(ray, a.static_data->circle, _) > 0;
+    return intersect(ray, a.static_data.circle, _) > 0;
   }
   else if (contains_inc({a.phi1, a.phi2}, b.phi2))
   {
     const line_segment ray {
       source,
-      b.static_data->line(b.sight_data.line.t2) - source
+      b.static_data.line(b.sight_data.line.t2) - source
     };
     double _;
-    return intersect(ray, a.static_data->circle, _) > 0;
+    return intersect(ray, a.static_data.circle, _) > 0;
   }
   else
   {
-    const line_segment ray {source, a.static_data->circle.center - source};
+    const line_segment ray {source, a.static_data.circle.center - source};
     double _;
-    return not (intersect(ray, b.static_data->line, _, _) > 0);
+    return not (intersect(ray, b.static_data.line, _, _) > 0);
   }
 }
 
@@ -228,28 +229,28 @@ _is_line_before_line(const mw::pt2d_d &source, const mw::sight& a,
     // intersects `a`.
     const line_segment ray {
       source,
-      b.static_data->line(b.sight_data.line.t1)-source
+      b.static_data.line(b.sight_data.line.t1)-source
     };
     double _;
-    return intersect(ray, a.static_data->line, _, _) > 0;
+    return intersect(ray, a.static_data.line, _, _) > 0;
   }
   else if (contains({a.phi1, a.phi2}, b.phi2))
   { // draw a line from source to the second point on `b` and check if it
     // intersects `a`.
     const line_segment ray {
       source,
-      b.static_data->line(b.sight_data.line.t2)-source
+      b.static_data.line(b.sight_data.line.t2)-source
     };
     double _;
-    return intersect(ray, a.static_data->line, _, _) > 0;
+    return intersect(ray, a.static_data.line, _, _) > 0;
   }
   else if (a.phi1 == b.phi1 and a.phi2 == b.phi2)
   {
     const double tbcenter = (b.sight_data.line.t1 + b.sight_data.line.t2)/2;
-    const pt2d_d bcenter = b.static_data->line(tbcenter);
+    const pt2d_d bcenter = b.static_data.line(tbcenter);
     const line_segment ray {source, bcenter - source};
     double t1, t2;
-    const int ret = intersect(ray, a.static_data->line, t1, t2);
+    const int ret = intersect(ray, a.static_data.line, t1, t2);
     return ret > 0;
   }
   else
@@ -517,7 +518,7 @@ _adjust_line_sight(const mw::pt2d_d &source, mw::sight &s, double phi1,
     const line_segment ray {source, rotated(vec2d_d(1, 0), phi1)};
     double rayt, linet;
     // we know there MUST be intersection
-    intersect(ray, s.static_data->line, rayt, linet);
+    intersect(ray, s.static_data.line, rayt, linet);
     s.phi1 = phi1;
     s.sight_data.line.t1 = linet;
   }
@@ -527,7 +528,7 @@ _adjust_line_sight(const mw::pt2d_d &source, mw::sight &s, double phi1,
     const line_segment ray {source, rotated(vec2d_d(1, 0), phi2)};
     double rayt, linet;
     // we know there MUST be intersection
-    intersect(ray, s.static_data->line, rayt, linet);
+    intersect(ray, s.static_data.line, rayt, linet);
     s.phi2 = phi2;
     s.sight_data.line.t2 = linet;
   }
@@ -544,9 +545,9 @@ _adjust_circle_sight(const mw::pt2d_d &source, mw::sight &s, double phi1,
     const line_segment ray {source, rotated(vec2d_d(1, 0), phi1)};
     double t;
     // we know there MUST be intersection
-    intersect(ray, s.static_data->circle, t);
+    intersect(ray, s.static_data.circle, t);
     s.phi1 = phi1;
-    s.sight_data.circle.cphi1 = dirangle(ray(t) - s.static_data->circle.center);
+    s.sight_data.circle.cphi1 = dirangle(ray(t) - s.static_data.circle.center);
   }
 
   if (phi2 != s.phi2)
@@ -554,9 +555,9 @@ _adjust_circle_sight(const mw::pt2d_d &source, mw::sight &s, double phi1,
     const line_segment ray {source, rotated(vec2d_d(1, 0), phi2)};
     double t;
     // we know there MUST be intersection
-    intersect(ray, s.static_data->circle, t);
+    intersect(ray, s.static_data.circle, t);
     s.phi2 = phi2;
-    s.sight_data.circle.cphi2 = dirangle(ray(t) - s.static_data->circle.center);
+    s.sight_data.circle.cphi2 = dirangle(ray(t) - s.static_data.circle.center);
   }
 }
 
@@ -584,111 +585,125 @@ void
 mw::vision_processor::_load_obstacle(const vis_obstacle *obs)
 { obs->get_sights(*this); }
 
+
+template <
+  typename AIter,
+  typename TIter,
+  typename TEraser,
+  typename BackInserter>
 void
-mw::vision_processor::process()
+_process(const mw::circle &source,
+         AIter abegin, AIter aend,
+         TIter tbegin, TIter tend,
+         TEraser teraser,
+         BackInserter newsights)
 {
-  const circle &source = get_source();
+  using namespace mw;
 
-  auto it1 = m_sights.begin();
-  while (it1 != m_sights.end())
+  for (TIter tit = tbegin; tit != tend; ++tit)
   {
-    sight &s1 = *it1;
+    sight &ts = *tit;
 
-    auto it2 = std::next(it1);
-    while (it2 != m_sights.end())
+    for (AIter ait = abegin; ait != aend; ++ait)
     {
-      sight &s2 = *it2;
+      const sight &as = *ait;
+      if (as.is_transparent) continue;
+      if (same_identity(as, ts)) continue;
+      if (not overlaps({ts.phi1, ts.phi2}, {as.phi1, as.phi2})) continue;
+      if (not is_before(source.center, as, ts)) continue;
 
-      // TODO: this branching can be resolved more efficienly
-      if (overlaps({s1.phi1, s1.phi2}, {s2.phi1, s2.phi2}))
+      double newphi1 = ts.phi1;
+      double newphi2 = ts.phi2;
+      switch (substract(newphi1, newphi2, {as.phi1, as.phi2}))
       {
-        if (is_before(source.center, s1, s2))
-        {
-          if (s1.is_transparent)
-            continue;
+        case empty:
+          std::tie(tit, tend) = teraser(tit);
+          --tit;
+          ait = aend;
+          --ait;
+          break;
 
-          double newphi1 = s2.phi1;
-          double newphi2 = s2.phi2;
-          switch (substract(newphi1, newphi2, {s1.phi1, s1.phi2}))
-          {
-            case empty:
-            {
-              auto tmp = it2;
-              ++it2;
-              m_sights.erase(tmp);
-              continue;
-            }
-            case adjust:
-            {
-              adjust_sight(source, s2, newphi1, newphi2);
-              break;
-            }
-            case split:
-            {
-              sight s2copy = s2;
-              adjust_sight(source, s2, s2.phi1, newphi1);
-              adjust_sight(source, s2copy, newphi2, s2copy.phi2);
-              m_sights.emplace_back(s2copy);
-            }
-          }
-        }
-        else
-        {
-          if (s2.is_transparent)
-            continue;
+        case adjust:
+          adjust_sight(source, ts, newphi1, newphi2);
+          break;
 
-          double newphi1 = s1.phi1;
-          double newphi2 = s1.phi2;
-          switch (substract(newphi1, newphi2, {s2.phi1, s2.phi2}))
-          {
-            case empty:
-            {
-              auto tmp = it1;
-              ++it1;
-              m_sights.erase(tmp);
-              goto l_loop1_continue; // dont increment it1 again
-            }
-            case adjust:
-            {
-              adjust_sight(source, s1, newphi1, newphi2);
-              break;
-            }
-            case split:
-            {
-              sight s1copy = s1;
-              adjust_sight(source, s1, s1.phi1, newphi1);
-              adjust_sight(source, s1copy, newphi2, s1copy.phi2);
-              m_sights.emplace_back(s1copy);
-            }
-          }
+        case split: {
+          sight s1copy = ts;
+          adjust_sight(source, ts, ts.phi1, newphi1);
+          adjust_sight(source, s1copy, newphi2, s1copy.phi2);
+          *newsights = s1copy;
+          break;
         }
       }
-
-      ++it2;
     }
-
-    ++it1;
-    l_loop1_continue:;
   }
 }
 
+template <typename Container>
+class swapback_eraser {
+  public:
+  explicit
+  swapback_eraser(Container &container)
+  : m_container {container}
+  { }
+
+  std::pair<typename Container::iterator, typename Container::iterator>
+  operator () (const typename Container::iterator &it)
+  {
+    std::swap(*it, m_container.back());
+    m_container.pop_back();
+    return {it, m_container.end()};
+  }
+
+  private:
+  Container &m_container;
+};
+
 void
-mw::vision_processor::apply(const pt2d_d &tgtsrc, std::list<sight> &tgtsights)
+mw::vision_processor::process()
+{
+  std::vector<sight> tsights = m_sights;
+  std::vector<sight> nsights;
+  std::vector<sight> osights;
+
+  nsights.reserve(m_sights.size());
+  osights.reserve(m_sights.size() * 2);
+  while (not tsights.empty())
+  {
+    // process target sights (against initial sights)
+    _process(get_source(),
+             m_sights.begin(), m_sights.end(),
+             tsights.begin(), tsights.end(),
+             swapback_eraser {tsights},
+             std::back_inserter(nsights));
+
+    // write processed sights into output
+    osights.insert(osights.end(), tsights.begin(), tsights.end());
+
+    // new sights are the new target
+    std::swap(tsights, nsights);
+    nsights.clear();
+  }
+
+  m_sights = std::move(osights);
+}
+
+void
+mw::vision_processor::apply(bool foreignsource, sight_container &tgtsights)
   const
 {
   const circle &source = get_source();
 
   // fix dir-angles of foreign sights so that they conform with `this` processor
-  if (source.center != tgtsrc)
+  if (foreignsource)
   {
-    const line_segment srcline {tgtsrc, source.center - tgtsrc};
     for (sight &s : tgtsights)
     {
       switch (s.tag)
       {
         case sight::circle:
         {
-          const circle &circ = s.static_data->circle;
+          const circle &circ = s.static_data.circle;
           const pt2d_d a = circ(s.sight_data.circle.cphi1);
           const pt2d_d b = circ(s.sight_data.circle.cphi2);
           s.phi1 = dirangle(a - source.center);
@@ -703,7 +718,7 @@ mw::vision_processor::apply(const pt2d_d &tgtsrc, std::list<sight> &tgtsights)
         }
         case sight::line:
         {
-          const line_segment &line = s.static_data->line;
+          const line_segment &line = s.static_data.line;
           const pt2d_d a = line(s.sight_data.line.t1);
           const pt2d_d b = line(s.sight_data.line.t2);
           s.phi1 = dirangle(a - source.center);
@@ -720,66 +735,31 @@ mw::vision_processor::apply(const pt2d_d &tgtsrc, std::list<sight> &tgtsights)
     }
   }
 
-  auto it1 = m_sights.begin();
-  while (it1 != m_sights.end())
+  std::vector<sight> tsights {tgtsights.begin(), tgtsights.end()};
+  std::vector<sight> nsights;
+  std::vector<sight> osights;
+
+  nsights.reserve(tsights.size());
+  osights.reserve(tsights.size() * 2);
+  while (not tsights.empty())
   {
-    const sight &s1 = *it1;
+    // process target sights (against initial sights)
+    _process(get_source(),
+             m_sights.begin(), m_sights.end(),
+             tsights.begin(), tsights.end(),
+             swapback_eraser {tsights},
+             std::back_inserter(nsights));
 
-    auto it2 = tgtsights.begin();
-    while (it2 != tgtsights.end())
-    {
-      sight &s2 = *it2;
+    // write processed sights into output
+    osights.insert(osights.end(), tsights.begin(), tsights.end());
 
-      // TODO: this branching can be resolved more efficienly
-      if (overlaps({s1.phi1, s1.phi2}, {s2.phi1, s2.phi2}))
-      {
-        if (s1.static_data->obs == s2.static_data->obs and
-            s1.static_data->aux_data == s2.static_data->aux_data)
-        {
-          ++it2;
-          continue;
-        }
-
-        if (is_before(source.center, s1, s2))
-        {
-          if (s1.is_transparent)
-            continue;
-
-          double newphi1 = s2.phi1;
-          double newphi2 = s2.phi2;
-          switch (substract(newphi1, newphi2, {s1.phi1, s1.phi2}))
-          {
-            case empty:
-            {
-              auto tmp = it2;
-              ++it2;
-              tgtsights.erase(tmp);
-              continue;
-            }
-            case adjust:
-            {
-              adjust_sight(source, s2, newphi1, newphi2);
-              break;
-            }
-            case split:
-            {
-              sight s2copy = s2;
-              adjust_sight(source, s2, s2.phi1, newphi1);
-              adjust_sight(source, s2copy, newphi2, s2copy.phi2);
-              tgtsights.emplace_back(s2copy);
-            }
-          }
-        }
-      }
-
-      ++it2;
-    }
-
-    ++it1;
-    l_loop1_continue:;
+    // new sights are the new target
+    std::swap(tsights, nsights);
+    nsights.clear();
   }
-}
 
+  tgtsights = std::move(osights);
+}
 
 void
 mw::vision_processor::shadowcast(SDL_Renderer *rend, const rectangle &box,
@@ -807,14 +787,14 @@ mw::vision_processor::shadowcast(SDL_Renderer *rend, const rectangle &box,
     switch (s.tag)
     {
       case sight::line:
-        line = s.static_data->line;
+        line = s.static_data.line;
         t1 = s.sight_data.line.t1;
         t2 = s.sight_data.line.t2;
         break;
 
       case sight::circle:
         {
-          const circle &circ = s.static_data->circle;
+          const circle &circ = s.static_data.circle;
           const pt2d_d a = circ(s.sight_data.circle.cphi1);
           const pt2d_d b = circ(s.sight_data.circle.cphi2);
           line = {a, b - a};
