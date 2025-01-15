@@ -1,7 +1,6 @@
 #include "vision.hpp"
 #include "object.hpp"
 #include "exceptions.hpp"
-#include "logging.h"
 
 #include <SDL2/SDL2_gfxPrimitives.h>
 
@@ -95,7 +94,6 @@ mw::cast_sight(const circle &src, const line_segment &line, sight &res) noexcept
       // --
       res.sight_data.line.t2 = 1;
       res.phi2 = dirangle(dir2);
-      goto l_return_true;
     }
     else /* 0 < t2 < 1 */
     { // line origin is visible, the other end is too far
@@ -105,8 +103,6 @@ mw::cast_sight(const circle &src, const line_segment &line, sight &res) noexcept
       const vec2d_d dir2 = (line.origin + t2*line.direction) - src.center;
       res.sight_data.line.t2 = t2;
       res.phi2 = dirangle(dir2);
-      // --
-      goto l_return_true;
     }
   }
   else if (t1 < 1)
@@ -120,8 +116,6 @@ mw::cast_sight(const circle &src, const line_segment &line, sight &res) noexcept
       const vec2d_d dir2 = (line.origin + t2*line.direction) - src.center;
       res.sight_data.line.t2 = t2;
       res.phi2 = dirangle(dir2);
-      // --
-      goto l_return_true;
     }
     else /* 1 < t2 */
     { // line origin is too far, but the other end is visible
@@ -131,15 +125,12 @@ mw::cast_sight(const circle &src, const line_segment &line, sight &res) noexcept
       // --
       res.sight_data.line.t2 = 1;
       res.phi2 = dirangle(dir2);
-      // --
-      goto l_return_true;
     }
   }
   else /* 1 < t1,2 */
     // too far
     return false;
 
-l_return_true:
   // segment described by [phi1, phi2] must be counter-clockwise
   if (std::max(res.phi1, res.phi2) - std::min(res.phi1, res.phi2) > M_PI)
   { // segment intersects Pi (phi(t) = Pi, for some t in [0, 1])

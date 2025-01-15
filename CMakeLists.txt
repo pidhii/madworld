@@ -11,11 +11,21 @@ include (ExternalProject OPTIONAL RESULT_VARIABLE ExternalProject_FOUND)
 
 find_package (PkgConfig REQUIRED)
 
+set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMakeModules)
+
 
 if (CMAKE_INSTALL_PREFIX)
   add_definitions (-DINSTALL_PREFIX="${CMAKE_INSTALL_PREFIX}")
   add_definitions (-DSCRIPTS_PATH="${CMAKE_INSTALL_PREFIX}/share/madworld")
 endif (CMAKE_INSTALL_PREFIX)
+
+option (CODE_PROFILING "Enable code profilers (gcov & gprof)" OFF)
+if (CODE_PROFILING)
+  include(CodeCoverage)
+  append_coverage_compiler_flags()
+  set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pg")
+endif (CODE_PROFILING)
+
 
 set (WARNING_FLAGS "-Wall -Werror -Wextra -Wno-unused -Wno-unused-parameter -Wno-error=cpp -Wno-vla-parameter -Wno-maybe-uninitialized")
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WARNING_FLAGS} -rdynamic -fpic")
