@@ -116,7 +116,9 @@ mw::area_map::build_grid()
 
   // initialize the new grid
   grid<bool> &g = m_static_grid.value();
-  g.scan([&] (grid_view<bool> &g) {
+  const double maxcellsize = 5;
+  const double mincellsize = 0.5;
+  g.scan([&] (grid_view<bool> &gcell) {
     for (const object_entry &objent : m_objects)
     {
       if ((objent.flags & oflag::is_static) == 0)
@@ -128,25 +130,26 @@ mw::area_map::build_grid()
         continue;
       }
 
-      if (g.is_leaf())
+      if (gcell.is_leaf())
       {
-        if (g.get_box().width > 5)
+        // divide cells larger then the max size
+        if (gcell.get_box().width > maxcellsize)
         {
-          g.divide(2, 2, false);
+          gcell.divide(2, 2, false);
           break;
         }
-        else if (not (*objent.pobsit.value())->overlap_box(g.get_box()))
+        // dont subdivide further if cell dost not contain any phys-obstacles
+        if (not (*objent.pobsit.value())->overlap_box(gcell.get_box()))
           continue;
-        else if (g.get_box().width > 0.5)
+        // otherwize, sibdivide even more until below min size
+        if (gcell.get_box().width > mincellsize)
         {
-          g.divide(2, 2, false);
+          gcell.divide(2, 2, false);
           break;
         }
-        else
-        {
-          g.set_value(true);
-          break;
-        }
+        // mark as occupied
+        gcell.set_value(true);
+        break;
       }
     }
   });

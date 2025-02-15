@@ -143,11 +143,18 @@ mw::video_manager::init()
     flags |= SDL_RENDERER_ACCELERATED;
   if (cfg.vsync)
     flags |= SDL_RENDERER_PRESENTVSYNC;
-  m_sdl.m_rend = SDL_CreateRenderer(m_sdl.m_win, -1, flags);
-  if (m_sdl.m_rend == NULL)
+  
+  if ((m_sdl.m_rend = SDL_CreateRenderer(m_sdl.m_win, -1, flags)) == nullptr)
   {
-    error("failed to initialize renderer (%s)", SDL_GetError());
-    throw std::runtime_error {"failed to initilize renderer"};
+    warning("failed to initialize renderer for specified configuration (%s)",
+            SDL_GetError());
+    // try again with only basic requirements
+    flags = SDL_RENDERER_TARGETTEXTURE;
+    if ((m_sdl.m_rend = SDL_CreateRenderer(m_sdl.m_win, -1, flags)) == nullptr)
+    {
+      error("can't to create event a simple renderer (%s)", SDL_GetError());
+      throw std::runtime_error {"failed to initilize renderer"};
+    }
   }
 
   if (not (m_font = TTF_OpenFont(cfg.font.path.c_str(), cfg.font.point_size)))

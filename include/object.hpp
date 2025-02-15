@@ -119,7 +119,8 @@ class phys_object: public phys_obstacle {
 }; // struct mw::phys_object
 
 
-struct vis_obstacle: public virtual object {
+class vis_obstacle: public virtual object {
+  public:
   using object::draw;
 
   virtual ~vis_obstacle() = default;

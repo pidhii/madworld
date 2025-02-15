@@ -118,13 +118,12 @@ mw::gui::sdl_string_factory::operator () (const std::string &str) const
   fg.b = (m_fg >> 16) & 0xFF;
   fg.a = (m_fg >> 24) & 0xFF;
 
-  int cursty;
+  // change font style
+  const int oldstyle = TTF_GetFontStyle(m_font);
   if (m_sty.has_value())
-  {
-    cursty = TTF_GetFontStyle(m_font);
     TTF_SetFontStyle(m_font, m_sty.value());
-  }
 
+  // draw text
   SDL_Surface *surf;
   if (m_bg.has_value())
   {
@@ -146,8 +145,8 @@ mw::gui::sdl_string_factory::operator () (const std::string &str) const
       surf = TTF_RenderText_Blended(m_font, str.c_str(), fg);
   }
 
-  if (m_sty.has_value())
-    TTF_SetFontStyle(m_font, cursty);
+  // reset old font style
+  TTF_SetFontStyle(m_font, oldstyle);
 
   if (surf == nullptr)
   {

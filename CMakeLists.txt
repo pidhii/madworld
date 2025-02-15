@@ -27,7 +27,7 @@ if (CODE_PROFILING)
 endif (CODE_PROFILING)
 
 
-set (WARNING_FLAGS "-Wall -Werror -Wextra -Wno-unused -Wno-unused-parameter -Wno-error=cpp -Wno-vla-parameter -Wno-maybe-uninitialized")
+set (WARNING_FLAGS "-Wall -Werror -Wextra -Wno-unused -Wno-unused-parameter -Wno-error=cpp")
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WARNING_FLAGS} -rdynamic -fpic")
 set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Og -ggdb")
 set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -march=native -flto")
@@ -42,12 +42,12 @@ include_directories (${ETHER_INCLUDE_DIRS})
 
 add_library (madworld_obj OBJECT ${SRC})
 
-add_executable (madworld  ${CMAKE_SOURCE_DIR}/main.cpp $<TARGET_OBJECTS:madworld_obj>)
+add_executable (madworld ${CMAKE_SOURCE_DIR}/apps/madworld/main.cpp $<TARGET_OBJECTS:madworld_obj>)
 target_link_libraries (madworld -lm -lSDL2 -lSDL2_ttf -lSDL2_image ${ETHER_LDFLAGS} -lether++ -leco
   ${CMAKE_SOURCE_DIR}/sdl2_gfx/SDL2_gfx-1.0.4-install/lib/libSDL2_gfx.a)
 install (TARGETS madworld DESTINATION bin)
 
-add_executable (madworld_mapgen  ${CMAKE_SOURCE_DIR}/map_generator_main.cpp $<TARGET_OBJECTS:madworld_obj>)
+add_executable (madworld_mapgen  ${CMAKE_SOURCE_DIR}/apps/madworld_mapgen/main.cpp $<TARGET_OBJECTS:madworld_obj>)
 target_link_libraries (madworld_mapgen -lm -lSDL2 -lSDL2_ttf -lSDL2_image ${ETHER_LDFLAGS} -lether++ -leco
   ${CMAKE_SOURCE_DIR}/sdl2_gfx/SDL2_gfx-1.0.4-install/lib/libSDL2_gfx.a)
 install (TARGETS madworld_mapgen DESTINATION bin)

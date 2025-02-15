@@ -40,6 +40,7 @@ struct vec2d {
   vec2d() = default;
   template <typename U>
   explicit operator vec2d<U> () const { return {U(x), U(y)}; }
+  vec2d operator - () const noexcept { return {-x, -y}; }
   T x, y;
 }; // struct mw::geo::vec2d<T>
 

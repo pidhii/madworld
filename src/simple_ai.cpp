@@ -2,6 +2,8 @@
 #include "npc.hpp"
 #include "player.hpp"
 
+#include <cmath>
+
 
 mw::simple_ai::simple_ai(npc &slave, const area_map &map)
 : m_slave {slave},
@@ -97,13 +99,17 @@ mw::simple_ai::get_destination(const area_map &map, vec2d_d &destination)
 
   if (m_exploration.destination.has_value())
   {
-    destination = normalized(m_exploration.destination.value());
+    const vec2d_d dir = m_exploration.destination.value();
+    const double phi = dirangle(dir);
+    const double phistep = 30. / 180. * M_PI;
+    const double adjphi = std::round(phi / phistep) * phistep;
+    destination = rotated(vec2d_d {1, 0}, adjphi);
     return true;
   }
   // branches below are effectively dead
   else if (m_slave.get_velocity() != vec2d_d {0, 0})
   {
-    destination = normalized(m_slave.get_position() - m_slave.get_position());
+    destination = -normalized(m_slave.get_velocity());
     return true;
   }
   else

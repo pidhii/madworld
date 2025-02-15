@@ -16,6 +16,9 @@ struct grid;
 template <typename T, typename Root>
 class grid_base {
   public:
+  static constexpr char class_name[] = "mw::utl::grid_base";
+  using exception = scoped_exception<class_name>;
+
   using data_type = T;
   using value_type = data_type;
 
@@ -63,7 +66,7 @@ class grid_base {
     if (is_leaf())
       return m_root->data();
     else
-      throw exception {"not a leaf"};
+      throw exception {"get_value() on non-leaf node"}.in(__func__);
   }
 
   T&
@@ -72,7 +75,7 @@ class grid_base {
     if (is_leaf())
       return m_root->data();
     else
-      throw exception {"not a leaf"};
+      throw exception {"get_value_ref() on non-leaf node"}.in(__func__);
   }
 
   void
@@ -81,7 +84,7 @@ class grid_base {
     if (is_leaf())
       m_root->data() = v;
     else
-      throw exception {"not a leaf"};
+      throw exception {"set_value() on non-leaf node"}.in(__func__);
   }
 
   template <typename ...Args>
@@ -91,7 +94,7 @@ class grid_base {
     if (m_root->is_data())
       m_root = cell_type::make_grid_cell(nx, ny, std::forward<Args>(args)...);
     else
-      throw exception {"not a leaf"};
+      throw exception {"divide() on non-leaf node"}.in(__func__);
   }
 
   template <typename Callback>
@@ -180,7 +183,7 @@ class grid_base {
   _get_bottom_cell(const pt2d_d &p) const
   {
     if (not m_box.contains(p))
-      throw exception {"values outside grid"};
+      throw exception {"values outside grid"}.in(__func__);
 
     double w = m_box.width;
     double h = m_box.height;
@@ -193,7 +196,7 @@ class grid_base {
   _get_bottom_cell(const pt2d_d &p)
   {
     if (not m_box.contains(p))
-      throw exception {"values outside grid"};
+      throw exception {"values outside grid"}.in(__func__);
 
     double w = m_box.width;
     double h = m_box.height;

@@ -1,5 +1,6 @@
 #include "map_generation.hpp"
 #include "exceptions.hpp"
+#include "logging.h"
 
 #include <bitset>
 
@@ -86,6 +87,10 @@ _overlay_cells(uint8_t dst, uint8_t src,
       if (dstval == doorway and srcval == doorway)
         ovdata.n_ovl_doorways += 1;
       break;
+
+    default:
+      error("unreachable");
+      abort();
   }
   return resval | resor;
 }

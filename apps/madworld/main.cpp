@@ -37,12 +37,12 @@ _make_npc_ctl_hud(mw::sdl_environment &sdl,
   mw::label *label = new mw::label {sdl, strfac(npcptr.get()->get_nickname())};
   label->on("update", [=] (MWGUI_CALLBACK_ARGS) -> int {
       const mw::pt2d_d &pos = npcptr.get()->get_position();
-      const std::string text =
-        (boost::format("%s @ (%.0f, %.0f)")
-         % npcptr.get()->get_nickname()
-         % npcptr.get()->get_position().x
-         % npcptr.get()->get_position().y).str();
-      self->set_string(strfac(text));
+      const boost::format text =
+        boost::format("%s @ (%.0f, %.0f)")
+        % npcptr.get()->get_nickname()
+        % npcptr.get()->get_position().x
+        % npcptr.get()->get_position().y;
+      self->set_string(strfac(text.str()));
       return 0;
   });
   label->set_min_width(150);

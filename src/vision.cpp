@@ -793,6 +793,10 @@ mw::vision_processor::shadowcast(SDL_Renderer *rend, const rectangle &box,
           t2 = 1;
           break;
         }
+
+      default:
+        error("unreachable");
+        abort();
     }
 
     pts.clear();
