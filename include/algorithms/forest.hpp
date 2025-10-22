@@ -3,9 +3,8 @@
 
 #include <cstddef>
 #include <utility>
+#include <vector>
 
-
-namespace std { template <class T, class Allocator> class vector; }
 
 namespace mw
 {
@@ -27,36 +26,22 @@ namespace union_method
   struct by_size {};
 };
 
-template <typename FindMethod, typename UnionMethod>
-struct forest_traits {
-  typedef FindMethod find_type;
-  typedef UnionMethod union_type;
-};
-
 
 namespace detail {
 
 // Basic fields for element with non-void identifier.
 template <typename Key>
 struct element_base {
-  element_base(size_t id, const Key& key)
-  : parent {id}, key {key}
+  element_base(const Key& parent)
+  : parent {parent}
   { }
 
   template <typename ...Args>
-  element_base(size_t id, Args&& ...args)
-  : parent {id}, key {std::forward<Args>(args)...}
+  element_base(Args&& ...args)
+  : parent {std::forward<Args>(args)...}
   { }
 
-  size_t parent;
-  Key key;
-};
-
-// Specialization for elements without additional identifier.
-template <>
-struct element_base<void> {
-  size_t parent;
-  element_base(size_t id): parent {id} { }
+  Key parent;
 };
 
 template <typename>
@@ -75,130 +60,147 @@ struct element: element_base<Key>, element_union_part<UnionMethod> {
   using element_base<Key>::element_base;
 };
 
-template <typename Key, typename Traits,
-         template <typename...> typename Container>
+
+template <typename T>
+struct is_pair { static constexpr bool value = false; };
+
+template <typename T, typename U>
+struct is_pair<std::pair<T, U>> { static constexpr bool value = true; };
+
+template <typename Key, typename Traits, typename Container>
 class forest {
+  static_assert(not std::is_void<Key>::value, "key can not be of void type");
+
   public:
+  using key_type = Key;
   using value_type = element<Key, typename Traits::union_type>;
-  using container_type = Container<value_type>;
+  using container_type = Container;
 
   explicit
   forest() = default;
   forest(const forest& other): m_els {other.m_els} { }
   forest(forest&& other): m_els {std::move(other.m_els)} { }
 
-  template <typename ...Args>
-  size_t
-  make_set(Args&& ...args)
-  {
-    const size_t id = m_els.size();
-    m_els.emplace_back(id, std::forward<Args>(args)...);
-    return id;
-  }
-
-  size_t
-  make_set()
-  {
-    const size_t id = m_els.size();
-    m_els.emplace_back(id);
-    return id;
-  }
-
-  size_t
-  parent(size_t id) const
-  { return m_els[id].parent; }
-
-  size_t
-  find(size_t id);
 
   void
-  join(size_t x, size_t y);
+  make_set(const key_type &key)
+  {
+    if constexpr (is_pair<typename container_type::value_type>::value)
+      m_els.emplace(key, key);
+    else
+      m_els.emplace_back(key);
+  }
+
+  const key_type&
+  parent(const key_type &id) const
+  { return m_els.at(id).parent; }
+
+  key_type
+  find(const key_type &id);
 
   void
-  reserve(typename container_type::size_type size)
-  { m_els.reserve(size); }
+  join(const key_type &x, const key_type &y);
+
+  // void
+  // reserve(typename container_type::size_type size)
+  // { m_els.reserve(size); }
+
+  void
+  resize(typename container_type::size_type size)
+  {
+    m_els.clear();
+    m_els.reserve(size);
+    for (typename container_type::size_type i = 0; i < size; ++i)
+      make_set(i);
+  }
+
+  void
+  clear()
+  { m_els.clear(); }
 
   protected:
-  Container<value_type> m_els;
+  container_type m_els;
 
   private:
-  size_t
-  _set_parent(size_t id, size_t p)
+  const key_type&
+  _set_parent(const key_type &id, const key_type &p)
   { return m_els[id].parent = p; }
 
-  template <typename Key_, typename Traits_, template <typename...> typename C>
-  friend size_t
-  _find(forest<Key_, Traits_, C>& f, size_t id, find_method::naive);
-  template <typename Key_, typename Traits_, template <typename...> typename C>
-  friend size_t
-  _find(forest<Key_, Traits_, C>& f, size_t id, find_method::path_compression);
-  template <typename Key_, typename Traits_, template <typename...> typename C>
-  friend size_t
-  _find(forest<Key_, Traits_, C>& f, size_t id, find_method::path_halving);
-  template <typename Key_, typename Traits_, template <typename...> typename C>
-  friend size_t
-  _find(forest<Key_, Traits_, C>& f, size_t id, find_method::path_splitting);
+  template <typename Key_, typename Traits_, typename C>
+  friend Key_
+  _find(forest<Key_, Traits_, C>& f, const Key_ &id, find_method::naive);
+  template <typename Key_, typename Traits_, typename C>
+  friend Key_
+  _find(forest<Key_, Traits_, C>& f, const Key_ &id, find_method::path_compression);
+  template <typename Key_, typename Traits_, typename C>
+  friend Key_
+  _find(forest<Key_, Traits_, C>& f, const Key_ &id, find_method::path_halving);
+  template <typename Key_, typename Traits_, typename C>
+  friend Key_
+  _find(forest<Key_, Traits_, C>& f, const Key_ &id, find_method::path_splitting);
 
-  template <typename Key_, typename Traits_, template <typename...> typename C>
+  template <typename Key_, typename Traits_, typename C>
   friend void
-  _join(forest<Key_, Traits_, C>& f, size_t x, size_t y, union_method::naive);
-  template <typename Key_, typename Traits_, template <typename...> typename C>
+  _join(forest<Key_, Traits_, C>& f, const Key_ &x, const Key_ &y, union_method::naive);
+  template <typename Key_, typename Traits_, typename C>
   friend void
-  _join(forest<Key_, Traits_, C>& f, size_t x, size_t y, union_method::by_rank);
-  template <typename Key_, typename Traits_, template <typename...> typename C>
+  _join(forest<Key_, Traits_, C>& f, const Key_ &x, const Key_ &y, union_method::by_rank);
+  template <typename Key_, typename Traits_, typename C>
   friend void
-  _join(forest<Key_, Traits_, C>& f, size_t x, size_t y, union_method::by_size);
+  _join(forest<Key_, Traits_, C>& f, const Key_ &x, const Key_ &y, union_method::by_size);
 };
 
-template <typename Key, typename Traits, template <typename...> typename C>
-size_t
-_find(forest<Key, Traits, C>& f, size_t id, find_method::naive)
+template <typename Key, typename Traits, typename C>
+Key
+_find(forest<Key, Traits, C>& f, const Key &id, find_method::naive)
 {
-  while (id != f.parent(id))
-    id = f.parent(id);
-  return id;
+  Key tmp = id;
+  while (tmp != f.parent(tmp))
+    tmp = f.parent(tmp);
+  return tmp;
 }
 
-template <typename Key, typename Traits, template <typename...> typename C>
-size_t
-_find(forest<Key, Traits, C>& f, size_t id, find_method::path_compression)
+template <typename Key, typename Traits, typename C>
+Key
+_find(forest<Key, Traits, C>& f, const Key &id, find_method::path_compression)
 { return f._set_parent(id, _find(f, id, find_method::naive { })); }
 
-template <typename Key, typename Traits, template <typename...> typename C>
-size_t
-_find(forest<Key, Traits, C>& f, size_t id, find_method::path_halving)
+template <typename Key, typename Traits, typename C>
+Key
+_find(forest<Key, Traits, C>& f, const Key &id, find_method::path_halving)
 {
-  while (id != f.parent(id))
+  Key tmp = id;
+  while (tmp != f.parent(tmp))
   {
-    f._set_parent(id, f.parent(f.parent(id)));
-    id = f.parent(id);
+    f._set_parent(tmp, f.parent(f.parent(tmp)));
+    tmp = f.parent(tmp);
+  }
+  return tmp;
+}
+
+template <typename Key, typename Traits, typename C>
+Key
+_find(forest<Key, Traits, C>& f, const Key &id, find_method::path_splitting)
+{
+  Key idval = id;
+  while (idval != f.parent(idval))
+  {
+    const Key tmp = f.parent(idval);
+    f._set_parent(idval, f.parent(tmp));
+    idval = tmp;
   }
   return id;
 }
 
-template <typename Key, typename Traits, template <typename...> typename C>
-size_t
-_find(forest<Key, Traits, C>& f, size_t id, find_method::path_splitting)
-{
-  size_t tmp;
-  while (id != f.parent(id))
-  {
-    tmp = f.parent(id);
-    f._set_parent(id, f.parent(tmp));
-    id = tmp;
-  }
-  return id;
-}
-
-template <typename Key, typename Traits, template <typename...> typename C>
-size_t
-forest<Key, Traits, C>::find(size_t x)
+template <typename Key, typename Traits, typename C>
+Key
+forest<Key, Traits, C>::find(const Key &x)
 { return _find(*this, x, typename Traits::find_type { }); }
 
 
-template <typename Key, typename Traits, template <typename...> typename C>
+template <typename Key, typename Traits, typename C>
 void
-_join(forest<Key, Traits, C>& f, size_t x, size_t y, union_method::naive)
+_join(forest<Key, Traits, C>& f, const Key &x, const Key &y, union_method::naive)
 {
   typename Traits::find_type find_method;
   auto x_root = _find<Key, Traits>(f, x, find_method);
@@ -206,13 +208,13 @@ _join(forest<Key, Traits, C>& f, size_t x, size_t y, union_method::naive)
   f.m_els[y_root].parent = x_root;
 }
 
-template <typename Key, typename Traits, template <typename...> typename C>
+template <typename Key, typename Traits, typename C>
 void
-_join(forest<Key, Traits, C>& f, size_t x, size_t y, union_method::by_rank)
+_join(forest<Key, Traits, C>& f, const Key &x, const Key &y, union_method::by_rank)
 {
   typename Traits::find_type find_method;
-  auto x_root = _find<Key, Traits>(f, x, find_method);
-  auto y_root = _find<Key, Traits>(f, y, find_method);
+  Key x_root = _find<Key, Traits>(f, x, find_method);
+  Key y_root = _find<Key, Traits>(f, y, find_method);
 
   if (x_root == y_root)
     return;
@@ -235,13 +237,13 @@ _join(forest<Key, Traits, C>& f, size_t x, size_t y, union_method::by_rank)
   return;
 }
 
-template <typename Key, typename Traits, template <typename...> typename C>
+template <typename Key, typename Traits, typename C>
 void
-_join(forest<Key, Traits, C>& f, size_t x, size_t y, union_method::by_size)
+_join(forest<Key, Traits, C>& f, const Key &x, const Key &y, union_method::by_size)
 {
   typename Traits::find_type find_method;
-  auto x_root = _find<Key, Traits>(f, x, find_method);
-  auto y_root = _find<Key, Traits>(f, y, find_method);
+  Key x_root = _find<Key, Traits>(f, x, find_method);
+  Key y_root = _find<Key, Traits>(f, y, find_method);
 
   if (x_root == y_root)
     return;
@@ -250,29 +252,35 @@ _join(forest<Key, Traits, C>& f, size_t x, size_t y, union_method::by_size)
   //
   // swap roots according to size
   if (f.m_els[x_root].size < f.m_els[y_root].size)
-  {
-    size_t tmp = x_root;
-    x_root = y_root;
-    y_root = tmp;
-  }
+    std::swap(x_root, y_root);
 
   // attach tree with smaller size to one with bigger size
   f.m_els[y_root].parent = x_root;
   f.m_els[x_root].size += f.m_els[y_root].size;
 }
 
-template <typename Key, typename Traits, template <typename...> typename C>
+template <typename Key, typename Traits, typename C>
 void
-forest<Key, Traits, C>::join(size_t x, size_t y)
+forest<Key, Traits, C>::join(const Key &x, const Key &y)
 { _join(*this, x, y, typename Traits::union_type { }); }
 
 } // namespace mw::alg::detail
 
-template <
-  typename Key = void,
-  typename Traits = forest_traits<find_method::path_halving,
-                                  union_method::by_size>,
-  template <typename...> typename Container = std::vector>
+
+template <typename FindMethod, typename UnionMethod>
+struct forest_traits {
+  typedef FindMethod find_type;
+  typedef UnionMethod union_type;
+
+  template <typename Key>
+  using element_type = detail::element<Key, union_type>;
+};
+
+template <typename Key = size_t,
+          typename Traits =
+              forest_traits<find_method::path_halving, union_method::by_size>,
+          typename Container =
+              std::vector<typename Traits::template element_type<Key>>>
 struct forest: detail::forest<Key, Traits, Container> {
   using value_type =
     typename detail::forest<Key, Traits, Container>::value_type;

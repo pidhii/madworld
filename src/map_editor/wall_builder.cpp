@@ -10,14 +10,13 @@ wall_builder::wall_builder(mw::sdl_environment &sdl, mw::area_map &map)
 : m_sdl {sdl},
   m_map {map},
   m_gui {nullptr}, m_gui_vertices {nullptr},
-  make_normal_string {mw::video_manager::instance().get_font()},
-  make_button_string {mw::video_manager::instance().get_font()},
-  make_hlbutton_string {mw::video_manager::instance().get_font()},
+  make_normal_string {mw::video_config::instance().font.path},
+  make_button_string {mw::video_config::instance().font.path},
+  make_hlbutton_string {mw::video_config::instance().font.path},
   m_shift {false}, m_lbutton {false}
 {
   const mw::color_manager &cman = mw::color_manager::instance();
-  const mw::video_config::config &vcfg
-    = mw::video_config::instance().get_config();
+  const mw::video_config &vcfg = mw::video_config::instance();
 
   const int point_size = vcfg.font.point_size;
   const int tab_size = point_size/2*2;

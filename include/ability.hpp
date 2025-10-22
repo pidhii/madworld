@@ -53,6 +53,19 @@ class simple_gun: public ability {
 }; // class mw::simple_gun
 
 
+class open_door: public ability {
+  public:
+  void
+  activate(area_map &map, player &user, const pt2d_d &pt) override;
+};
+
+
+class close_door: public ability {
+  public:
+  void
+  activate(area_map &map, player &user, const pt2d_d &pt) override;
+};
+
 } // namespace mw
 
 #endif

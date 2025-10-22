@@ -5,6 +5,7 @@
 #include "vision.hpp"
 #include "textures.hpp"
 #include "physics.hpp"
+#include "color_manager.hpp"
 
 #include <ether/sandbox.hpp>
 
@@ -33,7 +34,7 @@ mw::area_map::area_map(sdl_environment &sdl, texture_storage &texstorage)
 mw::area_map::~area_map()
 {
   for (const auto& ent : m_objects)
-    ent.objptr->destroy();
+    delete ent.objptr;
 }
 
 void
@@ -308,7 +309,7 @@ mw::area_map::tick(physics_processor &physproc, int msec)
         m_vis_obstacles.erase(tmp->vobsit.value());
 
       m_objects.erase(tmp);
-      obj->destroy();
+      delete obj;
       continue;
     }
 
@@ -585,7 +586,7 @@ mw::area_map::_put_on_vicinity_grid(const object_id &id, bool is_static)
   if (pobs == nullptr)
   {
     throw exception {
-      "referred object can not be casted into a phys_object"
+      "referred object can not be casted into a phys_obstacle"
     }.in(__func__);
   }
 

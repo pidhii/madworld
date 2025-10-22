@@ -119,9 +119,10 @@ mw::gui::sdl_string_factory::operator () (const std::string &str) const
   fg.a = (m_fg >> 24) & 0xFF;
 
   // change font style
-  const int oldstyle = TTF_GetFontStyle(m_font);
+  TTF_Font *font = m_font(m_font_size);
+  const int oldstyle = TTF_GetFontStyle(font);
   if (m_sty.has_value())
-    TTF_SetFontStyle(m_font, m_sty.value());
+    TTF_SetFontStyle(font, m_sty.value());
 
   // draw text
   SDL_Surface *surf;
@@ -133,20 +134,20 @@ mw::gui::sdl_string_factory::operator () (const std::string &str) const
     bg.b = (m_bg.value() >> 16) & 0xFF;
     bg.a = (m_bg.value() >> 24) & 0xFF;
     if (m_wrap_len.has_value())
-      surf = TTF_RenderText_Shaded_Wrapped(m_font, str.c_str(), fg, bg, m_wrap_len.value());
+      surf = TTF_RenderText_Shaded_Wrapped(font, str.c_str(), fg, bg, m_wrap_len.value());
     else
-      surf = TTF_RenderText_Shaded(m_font, str.c_str(), fg, bg);
+      surf = TTF_RenderText_Shaded(font, str.c_str(), fg, bg);
   }
   else
   {
     if (m_wrap_len.has_value())
-      surf = TTF_RenderText_Blended_Wrapped(m_font, str.c_str(), fg, m_wrap_len.value());
+      surf = TTF_RenderText_Blended_Wrapped(font, str.c_str(), fg, m_wrap_len.value());
     else
-      surf = TTF_RenderText_Blended(m_font, str.c_str(), fg);
+      surf = TTF_RenderText_Blended(font, str.c_str(), fg);
   }
 
   // reset old font style
-  TTF_SetFontStyle(m_font, oldstyle);
+  TTF_SetFontStyle(font, oldstyle);
 
   if (surf == nullptr)
   {
@@ -161,7 +162,7 @@ void
 mw::gui::sdl_string_factory::set_style(int sty) noexcept
 {
   if (sty == 0)
-    m_sty == std::nullopt;
+    m_sty = std::nullopt;
   else
     m_sty = sty;
 }

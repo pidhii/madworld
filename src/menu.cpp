@@ -1,7 +1,12 @@
 #include "gui/menu.hpp"
+#include "color_manager.hpp"
 #include "ui_manager.hpp"
 #include "video_manager.hpp"
-#include "color_manager.hpp"
+
+#include <SDL2/SDL2_gfxPrimitives.h>
+#include <SDL2/SDL_error.h>
+#include <SDL2/SDL_render.h>
+
 
 
 mw::gui::basic_menu::basic_menu(mw::sdl_environment &sdl, component *c)
@@ -81,8 +86,17 @@ mw::gui::basic_menu::draw() const
     g = m_box_color >>  8 & 0xFF,
     b = m_box_color >> 16 & 0xFF,
     a = m_box_color >> 24 & 0xFF;
-  SDL_SetRenderDrawColor(rend, r, g, b, a);
-  SDL_RenderFillRect(rend, &clip);
+  SDL_BlendMode oldblend;
+  if (SDL_GetRenderDrawBlendMode(rend, &oldblend))
+    warning("%s", SDL_GetError());
+  if (SDL_SetRenderDrawBlendMode(rend, SDL_BLENDMODE_NONE))
+    warning("%s", SDL_GetError());
+  if (SDL_SetRenderDrawColor(rend, r, g, b, a))
+    warning("%s", SDL_GetError());
+  if (SDL_RenderFillRect(rend, &clip))
+    warning("%s", SDL_GetError());
+  if (SDL_SetRenderDrawBlendMode(rend, oldblend))
+    warning("%s", SDL_GetError());
   aapolygonColor(rend, m_box.xs, m_box.ys, 4, m_border_color);
   m_c->draw({m_box.xs[0]+m_leftpad, m_box.ys[0]+m_toppad});
 }
@@ -154,6 +168,7 @@ mw::gui::basic_menu::run_layer(mw::ui_manager &uiman)
   if (m_pending_close)
   {
     uiman.remove_layer(get_id());
+    m_pending_close = false;
     return;
   }
 

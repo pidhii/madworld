@@ -1,3 +1,5 @@
+#include "central_config.hpp"
+#include "color_manager.hpp"
 #include "logging.h"
 #include "map_generation.hpp"
 #include "exceptions.hpp"
@@ -5,222 +7,226 @@
 #include "gui/composer.hpp"
 #include "gui/menu.hpp"
 #include "ui_manager.hpp"
+#include "logging.h"
+#include "algorithms/forest.hpp"
+#include "map_generation.hpp"
+#include "video_manager.hpp"
+
+#include <SDL2/SDL.h>
+
+#include <chrono>
+#include <random>
+#include <arpa/inet.h>
 
 
-class map_generator_gui: public mw::component {
+static std::pair<int, int>
+get_window_size(mw::sdl_environment &sdl)
+{
+  int width, height;
+  SDL_GetWindowSize(sdl.get_window(), &width, &height);
+  return {width, height};
+}
+
+
+class gui: public mw::component, mw::map_generator_m1 {
   public:
-  map_generator_gui(mw::sdl_environment &sdl, mw::map_generator &mapgen,
-      mw::mapping &viewport)
-  : mw::component(sdl),
-    m_mapgen {mapgen},
-    m_viewport {viewport}
-  { }
-
-  void
-  start_room_overlay(const mw::carbon_grid &room) noexcept
-  { m_ovl_room = room; }
-
-  void
-  remove_room_overlay() noexcept
-  { m_ovl_room = std::nullopt; }
-
-  void
-  write_room()
+  gui(mw::sdl_environment &sdl)
+  : component(sdl)
   {
-    if (m_ovl_room.has_value())
-    {
-      try {
-        m_mapgen.write(m_ovl_room.value());
-      } catch (const mw::exception &exn) {
-        error("%s", exn.what());
-      }
-    }
-    else
-      warning("no overlay room to write");
+    size_t seed = std::random_device()();
+    info("seed: %zd", seed);
+
+    mw::generate_map(*this, seed, 200, 200);
   }
 
   int
   get_width() const override
-  {
-    const mw::carbon_grid &cg = m_mapgen.get_main_grid();
-    int xbegin, xend;
-    cg.get_x_range(xbegin, xend);
-    return (xend - xbegin)*m_viewport.get_x_scale();
-  }
+  { return get_window_size(m_sdl).first; }
 
   int
   get_height() const override
-  {
-    const mw::carbon_grid &cg = m_mapgen.get_main_grid();
-    int ybegin, yend;
-    cg.get_y_range(ybegin, yend);
-    return (yend - ybegin)*m_viewport.get_y_scale();
-  }
+  { return get_window_size(m_sdl).second; }
 
   void
   draw(const mw::pt2d_i &at) const override
   {
-    const mw::mapping viewport {
-      mw::vec2d_d(mw::to_vec(at)) + m_viewport.get_offset(),
-      m_viewport.get_x_scale(),
-      m_viewport.get_y_scale()
+    using namespace std::chrono_literals;
+
+    using clock = std::chrono::steady_clock;
+    static const clock::time_point tstart = clock::now();
+
+    const auto [winw, winh] = get_window_size(m_sdl);
+    const mw::mapping viewport {{0., 0.}, double(winw), double(winh)};
+
+    //if (clock::now() - tstart < 1s)
+      //return;
+
+    //for (const double x : m_vlines)
+    //{
+      //const auto [x1pix, y1pix] = viewport({x, 0});
+      //const auto [x2pix, y2pix] = viewport({x, 1});
+      //SDL_SetRenderDrawColor(m_sdl.get_renderer(), 0x33, 0x33, 0x33, 0xFF);
+      //SDL_RenderDrawLine(m_sdl.get_renderer(), x1pix, y1pix, x2pix, y2pix);
+    //}
+
+    //if (clock::now() - tstart < 2s)
+      //return;
+
+    //for (const double y : m_hlines)
+    //{
+      //const auto [x1pix, y1pix] = viewport({0, y});
+      //const auto [x2pix, y2pix] = viewport({1, y});
+      //SDL_SetRenderDrawColor(m_sdl.get_renderer(), 0x33, 0x33, 0x33, 0xFF);
+      //SDL_RenderDrawLine(m_sdl.get_renderer(), x1pix, y1pix, x2pix, y2pix);
+    //}
+
+    //if (clock::now() - tstart < 3s)
+      //return;
+
+    //for (const mw::pt2d_d &p : m_vertices)
+    //{
+      //const auto [xpix, ypix] = viewport(p);
+      //circleRGBA(m_sdl.get_renderer(), xpix, ypix, 4, 0xFF, 0x55, 0x55, 0xFF);
+    //}
+
+    //if (clock::now() - tstart < 4s)
+      //return;
+
+    //for (size_t i = 0; i < m_vertices.size(); ++i)
+    //{
+      //for (size_t j = i+1; j < m_vertices.size(); ++j)
+      //{
+        //if (m_walls[j + i*m_vertices.size()])
+        //{
+          //const auto [x1pix, y1pix] = viewport(m_vertices.at(i));
+          //const auto [x2pix, y2pix] = viewport(m_vertices.at(j));
+          //SDL_SetRenderDrawColor(m_sdl.get_renderer(), 0x33, 0xFF, 0x66, 0xFF);
+          //SDL_RenderDrawLine(m_sdl.get_renderer(), x1pix, y1pix, x2pix, y2pix);
+        //}
+      //}
+    //}
+
+    //if (clock::now() - tstart < 5s)
+      //return;
+
+    const std::vector<mw::color_t> colors {
+      0xFF5733FF, 0x33FF57FF, 0x3357FFFF, 0xFF33A1FF, 0xFF8333FF, 0x33FFF5FF,
+      0x8D33FFFF, 0xFF3380FF, 0x33FF8DFF, 0xFFD633FF, 0xFF5733FF, 0x33A1FFFF,
+      0xA833FFFF, 0xFF3333FF, 0x33FF83FF, 0xFFA833FF, 0x33FF33FF, 0x5733FFFF,
+      0xFF33D4FF, 0x33FFD4FF, 0xFFB833FF, 0x33FFB8FF, 0x5733A1FF, 0xFFA1B8FF,
+      0xFF5733FF, 0x33FFA1FF, 0xA1FF33FF, 0xFFA157FF, 0xFF3357FF, 0x57FFA1FF,
+      0xA157FFFF, 0xFFA1A1FF
     };
-    mw::draw_carbon_grid(m_sdl, viewport, m_mapgen.get_main_grid());
-    if (m_ovl_room.has_value())
-      mw::draw_carbon_grid(m_sdl, viewport, m_ovl_room.value());
+    int roomcnt = 0;
+    const int hlroom =
+      std::chrono::duration_cast<std::chrono::seconds>(1*(clock::now() - tstart))
+        .count() % 10;
+    for (const auto &[roomid, blocks] : m_rooms)
+    {
+      if (roomcnt % 10 == hlroom)
+      {
+        for (const auto &[iv, ih] : blocks)
+        {
+          // a -- b
+          // |    |
+          // d -- c
+          const mw::pt2d_d a = m_vertices[ih + iv*m_hlines.size()],
+          b = m_vertices[ih + (iv+1)*m_hlines.size()],
+          c = m_vertices[ih+1 + (iv+1)*m_hlines.size()],
+          d = m_vertices[ih+1 + iv*m_hlines.size()];
+          const mw::pt2d_i apix = mw::pt2d_i(viewport(a)),
+                bpix = mw::pt2d_i(viewport(b)),
+                cpix = mw::pt2d_i(viewport(c)),
+                dpix = mw::pt2d_i(viewport(d));
+          const SDL_Rect rect {
+            apix.x, // x-offs
+            apix.y, // y-offs
+            bpix.x - apix.x, // width
+            cpix.y - bpix.y  // height
+          };
+          const div_t qr = div(roomcnt, colors.size());
+          const mw::color_rgba rgba {htonl(colors[qr.rem])};
+          SDL_SetRenderDrawColor(m_sdl.get_renderer(), rgba.r, rgba.g, rgba.b, 0x20);
+          SDL_BlendMode oldblendmode;
+          SDL_GetRenderDrawBlendMode(m_sdl.get_renderer(), &oldblendmode);
+          SDL_SetRenderDrawBlendMode(m_sdl.get_renderer(), SDL_BLENDMODE_BLEND);
+          SDL_RenderFillRect(m_sdl.get_renderer(), &rect);
+          SDL_SetRenderDrawBlendMode(m_sdl.get_renderer(), oldblendmode);
+
+          for (const std::vector<size_t> &contour : room_contours(roomid))
+          {
+            std::vector<SDL_Point> points;
+            for (const size_t vertexidx : contour)
+            {
+              const mw::pt2d_d pix = viewport(m_vertices[vertexidx]);
+              points.push_back(SDL_Point {int(pix.x - 2), int(pix.y - 2)});
+              circleRGBA(m_sdl.get_renderer(), pix.x - 3, pix.y - 3, 2,
+                  0xFF, 0x00, 0x00, 0xFF);
+            }
+            points.push_back(points.front());
+            SDL_SetRenderDrawColor(m_sdl.get_renderer(), 0xFF, 0x00, 0x00, 0xFF);
+            SDL_RenderDrawLines(m_sdl.get_renderer(), points.data(), points.size());
+          }
+        }
+      }
+      roomcnt += 1;
+    }
+
+    //if (clock::now() - tstart < 6s)
+      //return;
+
+    for (size_t i = 0; i < m_vertices.size(); ++i)
+    {
+      for (size_t j = i+1; j < m_vertices.size(); ++j)
+      {
+        if (m_walls[wall_index(i, j)])
+        {
+          const auto [x1pix, y1pix] = viewport(m_vertices[i]);
+          const auto [x2pix, y2pix] = viewport(m_vertices[j]);
+          lineRGBA(m_sdl.get_renderer(), x1pix, y1pix, x2pix, y2pix,
+                   0xFF, 0xFF, 0xFF, 0xFF);
+        }
+      }
+    }
   }
 
   int
   send(const std::string &what, const std::any &data) override
-  {
-    if (what == "hover-begin" or what == "hover")
-      m_mousepos = std::any_cast<mw::vec2d_i>(data);
-    else if (what == "hover-end")
-      m_mousepos = std::nullopt;
-    else if (what == "keydown")
-    {
-      if (m_ovl_room.has_value())
-      {
-        switch (std::any_cast<int>(data))
-        {
-          case SDLK_UP: m_ovl_room.value().shift({0, -1}); break;
-          case SDLK_DOWN: m_ovl_room.value().shift({0, +1}); break;
-          case SDLK_LEFT: m_ovl_room.value().shift({-1, 0}); break;
-          case SDLK_RIGHT: m_ovl_room.value().shift({+1, 0}); break;
-          case SDLK_r:
-          {
-            int xbegin, xend, ybegin, yend;
-            m_ovl_room.value().get_x_range(xbegin, xend);
-            m_ovl_room.value().get_y_range(ybegin, yend);
-            const mw::vec2d_i fix {(xend + xbegin)/2, (yend + ybegin)/2};
-            m_ovl_room.value().rotate_right(fix);
-            break;
-          }
-          case SDLK_l:
-          {
-            int xbegin, xend, ybegin, yend;
-            m_ovl_room.value().get_x_range(xbegin, xend);
-            m_ovl_room.value().get_y_range(ybegin, yend);
-            const mw::vec2d_i fix {(xend + xbegin)/2, (yend + ybegin)/2};
-            m_ovl_room.value().rotate_left(fix);
-            break;
-          }
-          case SDLK_RETURN:
-            write_room();
-            break;
-        }
-      }
-    }
-    return 0;
-  }
-
-  private:
-  mw::map_generator &m_mapgen;
-  mw::mapping &m_viewport;
-  std::optional<mw::vec2d_i> m_mousepos;
-  std::optional<mw::carbon_grid> m_ovl_room;
+  { return 0; }
 };
 
 
 static int
-the_main(int argc, char **argv)
+the_main_v2(int argc, char **argv)
 {
+  const double nxlines = 10;
+  const double nylines = 10;
+
   mw::video_manager& vman = mw::video_manager::instance();
-  vman.init();
 
   mw::sdl_environment &sdl = vman.get_sdl();
 
-
-  mw::map_generator mapgen {50, 50};
-
-  const int n = 9;
-  mw::carbon_grid room {n, n};
-  for (int y = 1; y < n-1; ++y)
-  {
-    int8_t c;
-
-    c = room.get({1, y});
-    room.set({1, y}, c | mw::wall | mw::down);
-
-    c = room.get({n-1-1, y});
-    room.set({n-1-1, y}, c | mw::wall | mw::up);
-  }
-  for (int x = 1; x < n-1; ++x)
-  {
-    int8_t c;
-
-    c = room.get({x, 1});
-    room.set({x, 1}, c | mw::wall | mw::left);
-
-    c = room.get({x, n-1-1});
-    room.set({x, n-1-1}, c | mw::wall | mw::right);
-  }
-
-  room.set({0, 3}, mw::wall | mw::left);
-  room.set({1, 3}, mw::wall | mw::down | mw::left);
-  room.set({0, 4}, mw::doorway);
-  room.set({1, 4}, mw::cell_value::nothing);
-  room.set({0, 5}, mw::wall | mw::right);
-  room.set({1, 5}, mw::wall | mw::down | mw::right);
-
-  room.rotate_left({4, 4});
-  room.set({0, 3}, mw::wall | mw::left);
-  room.set({1, 3}, mw::wall | mw::down | mw::left);
-  room.set({0, 4}, mw::doorway);
-  room.set({1, 4}, mw::cell_value::nothing);
-  room.set({0, 5}, mw::wall | mw::right);
-  room.set({1, 5}, mw::wall | mw::down | mw::right);
-
-  room.rotate_left({4, 4});
-  room.set({0, 3}, mw::wall | mw::left);
-  room.set({1, 3}, mw::wall | mw::down | mw::left);
-  room.set({0, 4}, mw::doorway);
-  room.set({1, 4}, mw::cell_value::nothing);
-  room.set({0, 5}, mw::wall | mw::right);
-  room.set({1, 5}, mw::wall | mw::down | mw::right);
-
-  mw::mapping viewport {{0, 0}, 20, 20};
-  mw::composer ctlcomp {sdl, vman.get_font()};
-
-  map_generator_gui *mapgengui = new map_generator_gui {sdl, mapgen, viewport};
-
-  mw::linear_layout *ctllayout = new mw::vertical_layout {sdl};
-  mw::button *addroombutton = ctlcomp.make_button("[add room]");
-  ctllayout->add_component(addroombutton);
-  mw::button *quitbutton = ctlcomp.make_button("[quit]");
-  ctllayout->add_component(quitbutton);
-
-  mw::linear_layout *toplayout = new mw::horisontal_layout {sdl};
-  toplayout->add_component(ctllayout);
-  toplayout->add_component(mapgengui);
-
-  std::shared_ptr<mw::basic_menu> mainmenu =
-    std::make_shared<mw::basic_menu>(sdl, toplayout);
-  mainmenu->align_top();
-  mainmenu->align_left();
-  mainmenu->attach_keyboard_receiver(mapgengui);
-
-  addroombutton->on("clicked", [&] (MWGUI_CALLBACK_ARGS) -> int {
-      mapgengui->start_room_overlay(room);
-      return 0;
-  });
-  quitbutton->on("clicked", [&] (MWGUI_CALLBACK_ARGS) -> int {
-      mainmenu->close();
-      return 0;
-  });
+  // wrap GUI into a menu to simplify events
+  std::shared_ptr<mw::basic_menu> menu =
+    std::make_shared<mw::basic_menu>(sdl, new gui {sdl});
 
   mw::ui_manager uiman {sdl};
-  uiman.add_layer(mainmenu);
+  uiman.add_layer(menu);
   uiman.run();
 
-  return 0;
+  return EXIT_SUCCESS;
 }
 
 int
 main(int argc, char **argv)
 {
   eth::init(&argc);
-  int ret = the_main(argc, argv);
+
+  mw::central_config::set_config_file_path("./config.eth");
+  mw::video_config::use_central_config(true);
+  mw::color_manager::use_central_config(true);
+  int ret = the_main_v2(argc, argv);
+
   eth::cleanup();
   return ret;
 }

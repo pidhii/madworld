@@ -10,15 +10,17 @@
 
 namespace mw {
 
+
 struct projectile: public phys_object {
   using phys_object::phys_object;
 }; // struct mw::projectile
+
 
 class simple_projectile: public projectile {
   public:
   enum flags : uint8_t {
     none = 0,
-    remove_on_collision = 0x01 << 1,
+    remove_on_collision = 1 << 0,
   };
 
   simple_projectile(const pt2d_d &origin, const vec2d_d &dir,

@@ -17,20 +17,12 @@ mw::gui::label_base::set_string(const sdl_string &str) noexcept
   send("updated", 0);
 }
 
-int
-mw::gui::label_base::get_width() const
+std::pair<int, int>
+mw::gui::label_base::get_dimentions() const
 {
   texture_info texinfo;
   m_str.get_texture_info(m_sdl.get_renderer(), texinfo);
-  return texinfo.w;
-}
-
-int
-mw::gui::label_base::get_height() const
-{
-  texture_info texinfo;
-  m_str.get_texture_info(m_sdl.get_renderer(), texinfo);
-  return texinfo.h;
+  return {texinfo.w, texinfo.h};
 }
 
 void
@@ -43,24 +35,41 @@ mw::gui::label_base::send(const std::string &what, const std::any &data)
 
 
 void
-mw::gui::detail::_draw_box(sdl_environment &sdl, const pt2d_i &at, int w, int h,
-      const std::optional<color_t> &fill_color,
-      const std::optional<color_t> &border_color)
+mw::gui::detail::_draw_box(sdl_environment &sdl, pt2d_i at, int w, int h,
+                           int lw, const std::optional<color_t> &fill_color,
+                           const std::optional<color_t> &border_color)
 {
-  int16_t xs[4] = {short(at.x), short(at.x+w), short(at.x+w), short(at.x)};
-  int16_t ys[4] = {short(at.y), short(at.y)  , short(at.y+h), short(at.y+h)};
-
   if (fill_color.has_value())
+  {
+    const int16_t xs[4] = {short(at.x), short(at.x+w-1), short(at.x+w-1), short(at.x)};
+    const int16_t ys[4] = {short(at.y), short(at.y)  , short(at.y+h-1), short(at.y+h-1)};
     filledPolygonColor(sdl.get_renderer(), xs, ys, 4, fill_color.value());
+  }
+
   if (border_color.has_value())
-    aapolygonColor(sdl.get_renderer(), xs, ys, 4, border_color.value());
+  {
+    while (lw-- > 0)
+    {
+      const int16_t xs[4] = {short(at.x), short(at.x+w-1), short(at.x+w-1), short(at.x)};
+      const int16_t ys[4] = {short(at.y), short(at.y)  , short(at.y+h-1), short(at.y+h-1)};
+      if (border_color.has_value())
+        aapolygonColor(sdl.get_renderer(), xs, ys, 4, border_color.value());
+      at.x += 1;
+      at.y += 1;
+      w -= 2;
+      h -= 2;
+    }
+  }
 }
 
-
-mw::gui::text_entry_base::text_entry_base(sdl_environment &sdl, TTF_Font *font, color_t fg,
-    int width, int height)
-: component(sdl), m_font {font}, m_fg {fg}, m_width {width}, m_height {height},
-  m_cursor {sdl_string::blended(font, "_", fg)},
+mw::gui::text_entry_base::text_entry_base(sdl_environment &sdl,
+                                          const sdl_string_factory &strfac,
+                                          int width, int height)
+: component(sdl),
+  m_strfac {strfac},
+  m_width {width},
+  m_height {height},
+  m_cursor {strfac("_")},
   m_enable_cursor {false}
 { }
 
@@ -70,7 +79,12 @@ mw::gui::text_entry_base::draw(const pt2d_i &at) const
   if (not m_str.has_value())
   {
     if (not m_text.empty())
-      m_str = sdl_string::blended_wrapped(m_font, m_text, m_fg, m_width);
+    {
+      if (m_width > 0)
+        m_str = m_strfac.wrap(m_width)(m_text);
+      else
+        m_str = m_strfac(m_text);
+    }
   }
 
   const int x0 = at.x, y0 = at.y;
@@ -87,7 +101,7 @@ mw::gui::text_entry_base::draw(const pt2d_i &at) const
   {
     texture_info cursinfo;
     m_cursor.get_texture_info(m_sdl.get_renderer(), cursinfo);
-    if (texinfo.w + cursinfo.w > m_width)
+    if (m_width > 0 and texinfo.w + cursinfo.w > m_width)
     {
       x = x0;
       y += texinfo.h;
@@ -101,7 +115,7 @@ mw::gui::text_entry_base::send(const std::string &what, const std::any &data)
 {
   if (what == "keydown")
   {
-    if (isprint(std::any_cast<int>(data)))
+    if (isprint((unsigned char)std::any_cast<int>(data)))
     {
       m_text.push_back(std::any_cast<int>(data));
       m_str = std::nullopt;
@@ -129,14 +143,15 @@ mw::gui::text_entry_base::set_text(const std::string &text)
   m_str = std::nullopt;
 }
 
-
-mw::gui::message_log_base::message_log_base(sdl_environment &sdl, TTF_Font *font,
-    color_t fg, int width, int height)
-: component(sdl), m_font {font}, m_width {width}, m_height {height},
+mw::gui::message_log_base::message_log_base(sdl_environment &sdl,
+                                            const ttf_font &font, color_t fg,
+                                            int width, int height)
+: component(sdl),
+  m_font {font},
+  m_width {width},
+  m_height {height},
   m_strfac {font, fg}
-{
-  m_strfac.set_wrap(width);
-}
+{ m_strfac.set_wrap(width); }
 
 void
 mw::gui::message_log_base::add_message(const std::string &msg)
@@ -183,30 +198,19 @@ mw::gui::linear_layout_base::entry_id
 mw::gui::linear_layout_base::find_component(const component *c) const noexcept
 { return std::find(m_list.begin(), m_list.end(), c); }
 
-int
-mw::gui::linear_layout_base::get_width() const
+std::pair<int, int>
+mw::gui::linear_layout_base::get_dimentions() const
 {
-  int res = 0;
+  int resw = 0, resh = 0;
   pt2d_i cpos {0, 0};
   for (const component *c : m_list)
   {
-    res = std::max(res, cpos.x + c->get_width());
-    cpos = _next(cpos, c);
+    const auto [w, h] = c->get_dimentions();
+    resw = std::max(resw, cpos.x + w);
+    resh = std::max(resh, cpos.y + h);
+    cpos = _next(cpos, w, h);
   }
-  return res;
-}
-
-int
-mw::gui::linear_layout_base::get_height() const
-{
-  int res = 0;
-  pt2d_i cpos {0, 0};
-  for (const component *c : m_list)
-  {
-    res = std::max(res, cpos.y + c->get_height());
-    cpos = _next(cpos, c);
-  }
-  return res;
+  return {resw, resh};
 }
 
 void
@@ -215,8 +219,9 @@ mw::gui::linear_layout_base::draw(const pt2d_i &at) const
   pt2d_i cpos = at;
   for (const component *c : m_list)
   {
+    const auto [w, h] = c->get_dimentions();
     c->draw(cpos);
-    cpos = _next(cpos, c);
+    cpos = _next(cpos, w, h);
   }
 }
 
@@ -229,7 +234,8 @@ mw::gui::linear_layout_base::send(const std::string &what, const std::any &data)
     pt2d_i start {0, 0};
     for (component *c : m_list)
     {
-      const pt2d_i end {start.x + c->get_width(), start.y + c->get_height()};
+      const auto [w, h] = c->get_dimentions();
+      const pt2d_i end {start.x + w, start.y + h};
       if (start.x < hover.x and hover.x < end.x and
           start.y < hover.y and hover.y < end.y)
       {
@@ -255,7 +261,7 @@ mw::gui::linear_layout_base::send(const std::string &what, const std::any &data)
           return 0;
         }
       }
-      start = _next(start, c);
+      start = _next(start, w, h);
     }
     // loop finished normally => nothing is being hovered
     if (m_old_hover.has_value())

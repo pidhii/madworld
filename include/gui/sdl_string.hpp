@@ -3,7 +3,8 @@
 
 #include "common.hpp"
 #include "geometry.hpp"
-#include "color_manager.hpp"
+#include "gui/ttf_font.hpp"
+#include "video_manager.hpp"
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
@@ -104,12 +105,13 @@ class sdl_string {
 
 class sdl_string_factory {
   public:
-  sdl_string_factory(TTF_Font *font, color_t fg = color_manager::instance()["Normal"])
-  : m_font {font}, m_fg {fg}
+  sdl_string_factory(const ttf_font &font, color_t fg = 0xffffffff)
+  : m_font {font},
+    m_fg {fg},
+    m_font_size {mw::video_config::instance().font.point_size}
   { }
 
   sdl_string_factory(const sdl_string_factory &other) = default;
-
 
   void set_fg_color(color_t fg) noexcept { m_fg = fg; }
   void set_bg_color(color_t bg) noexcept { m_bg = bg; }
@@ -117,18 +119,66 @@ class sdl_string_factory {
   void set_style(int sty) noexcept;
   void set_wrap(uint32_t wrap_len) noexcept { m_wrap_len = wrap_len; }
   void set_nowrap() noexcept { m_wrap_len = std::nullopt; }
-  void set_font_size(int point_size) noexcept { m_font_size = point_size; }
+  void set_font_size(int font_size) noexcept { m_font_size = font_size; }
+
+  sdl_string_factory
+  wrap(uint32_t wrap_len) const noexcept
+  {
+    sdl_string_factory other = *this;
+    other.set_wrap(wrap_len);
+    return other;
+  }
+
+  sdl_string_factory
+  bold() const noexcept
+  {
+    sdl_string_factory other = *this;
+    other.set_style(m_sty.value_or(0) | TTF_STYLE_BOLD);
+    return other;
+  }
+
+  sdl_string_factory
+  italic() const noexcept
+  {
+    sdl_string_factory other = *this;
+    other.set_style(m_sty.value_or(0) | TTF_STYLE_ITALIC);
+    return other;
+  }
+
+  sdl_string_factory
+  underline() const noexcept
+  {
+    sdl_string_factory other = *this;
+    other.set_style(m_sty.value_or(0) | TTF_STYLE_UNDERLINE);
+    return other;
+  }
+
+  sdl_string_factory
+  strikethrough() const noexcept
+  {
+    sdl_string_factory other = *this;
+    other.set_style(m_sty.value_or(0) | TTF_STYLE_STRIKETHROUGH);
+    return other;
+  }
+
+  sdl_string_factory
+  font_size(int font_size) const noexcept
+  {
+    sdl_string_factory other = *this;
+    other.set_font_size(font_size);
+    return other;
+  }
 
   sdl_string
   operator () (const std::string &str) const;
 
   private:
-  TTF_Font *m_font;
+  ttf_font m_font;
   color_t m_fg;
   std::optional<color_t> m_bg;
   std::optional<int> m_sty;
   std::optional<uint32_t> m_wrap_len;
-  std::optional<int> m_font_size;
+  int m_font_size;
 
 }; // class mw::gui::sdl_string_factory
 

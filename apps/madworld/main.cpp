@@ -13,6 +13,9 @@
 #include "gui/composer.hpp"
 #include "controls/keyboard_controller.hpp"
 #include "central_config.hpp"
+#include "map_generation.hpp"
+#include "door.hpp"
+#include "color_manager.hpp"
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL2_gfxPrimitives.h>
@@ -256,8 +259,11 @@ class npc_name_hud: public mw::hud_component {
 static int
 the_main(int argc, char **argv)
 {
+  mw::central_config::set_config_file_path("./config.eth");
+  mw::video_config::use_central_config(true);
+  mw::color_manager::use_central_config(true);
+
   mw::video_manager& vman = mw::video_manager::instance();
-  vman.init();
 
   mw::sdl_environment &sdl = vman.get_sdl();
 
@@ -267,7 +273,18 @@ the_main(int argc, char **argv)
   textures.load("BulletGlow", "./textures/BulletGlow2.png");
 
   mw::area_map map {sdl, textures};
-  map.load("./map.eth");
+  map.set_size(200, 200);
+
+  //map.load("./map.eth");
+
+  // mw::map_generator_m1 mapgen;
+  // info("generating level layout");
+  // mw::generate_map(mapgen, 0, 200, 200);
+  // info("transfering walls on the map");
+  // mapgen.apply(map);
+  // info("building grid");
+  // map.build_grid();
+
   map.init_background(4096*2, 4096*2);
 
   mw::player *player1 = new mw::player {{20, 20}, 0.007};
@@ -283,8 +300,16 @@ the_main(int argc, char **argv)
   map.register_phys_obstacle(player1_id);
   map.register_vis_obstacle(player1_id);
 
+
+  // XXX TEST XXX
+  mw::door *door = new mw::door {{30, 20}, {30, 22}};
+  mw::object_id doorid = map.add_object(door);
+  map.register_phys_obstacle(doorid);
+  map.register_vis_obstacle(doorid);
+  // XXX TEST XXX
+
   std::vector<mw::safe_pointer<mw::npc>> npcs;
-  for (int i = 0; i < 10; ++i)
+  for (int i = 0; i < 0; ++i)
   {
     mw::npc *npc = new mw::npc {0.3, {41. + i*1., 20}};
     npc->set_nickname(std::string("NPC-") + std::to_string(i));
@@ -305,9 +330,7 @@ the_main(int argc, char **argv)
 
   mw::ui_manager uiman {sdl};
 
-  TTF_Font *font = vman.get_font();
-  TTF_Font *small_font =
-    TTF_OpenFont(mw::video_config::instance().get_config().font.path.c_str(),10);
+  mw::ttf_font font = vman.get_font();
 
   mw::vertical_layout *menu_layout = new mw::vertical_layout {sdl};
   std::shared_ptr<mw::basic_menu> main_menu = std::make_shared<mw::basic_menu>(sdl, menu_layout);
@@ -324,11 +347,13 @@ the_main(int argc, char **argv)
   kbrd.make_button("camera-up", SDL_GetScancodeFromName("up"));
   kbrd.make_button("camera-down", SDL_GetScancodeFromName("down"));
   kbrd.make_button("camera-center", SDL_GetScancodeFromName("space"));
-  kbrd.make_button("fow-toggle", SDL_GetScancodeFromName("`"));
+  kbrd.make_button("fow-toggle", SDL_GetScancodeFromName("`")); // grave
   kbrd.make_analog("move-x-axis", SDL_GetScancodeFromName("d"), SDL_GetScancodeFromName("a"));
   kbrd.make_analog("move-y-axis", SDL_GetScancodeFromName("s"), SDL_GetScancodeFromName("w"));
   kbrd.make_left_mouse_button("ability1");
   kbrd.make_left_mouse_button("pointer-click");
+  kbrd.make_button("open-door", SDL_GetScancodeFromName("o"));
+  kbrd.make_button("close-door", SDL_GetScancodeFromName("c"));
 
   mw::composer guicomp {sdl, font};
   menu_layout->add_component(
@@ -340,7 +365,9 @@ the_main(int argc, char **argv)
         std::make_shared<mw::game_manager>(sdl, map, kbrd);
       gman->set_player(*player1, 20);
 
-      mw::sdl_string_factory hud_strfac {small_font};
+      TTF_Font *small_font = font(mw::video_config::instance().font.point_size * 0.65);
+      mw::sdl_string_factory hud_strfac {font};
+      hud_strfac.set_font_size(mw::video_config::instance().font.point_size * 0.65);
 
       npc_access_hud *npchud = new npc_access_hud {sdl, small_font, {100, 10}};
       mw::radio_group_ptr memradios = mw::make_radio_group();
@@ -383,7 +410,7 @@ the_main(int argc, char **argv)
     })
   );
   const int point_size =
-    mw::video_config::instance().get_config().font.point_size;
+    mw::video_config::instance().font.point_size;
   menu_layout->add_component(new mw::padding {sdl, 0, point_size});
   menu_layout->add_component(
     guicomp.make_button("Quit")
@@ -399,7 +426,7 @@ the_main(int argc, char **argv)
 
   uiman.add_layer(main_menu);
 
-  mw::sdl_string_factory fpsstrfac {small_font};
+  mw::sdl_string_factory fpsstrfac {font};
   fpsstrfac.set_fg_color(0xFF00FF00);
   std::shared_ptr<mw::fps_display> fpsdisp =
     std::make_shared<mw::fps_display>(sdl, fpsstrfac, 5, 5);
@@ -408,8 +435,6 @@ the_main(int argc, char **argv)
 
   uiman.draw(uiman.get_top_layer_id());
   uiman.run();
-
-  TTF_CloseFont(small_font);
 
   return 0;
 }

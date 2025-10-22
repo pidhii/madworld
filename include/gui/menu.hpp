@@ -3,6 +3,7 @@
 
 #include "ui_layer.hpp"
 #include "gui/components.hpp"
+#include "utl/frequency_limiter.hpp"
 #include "video_manager.hpp"
 
 #include <optional>
@@ -16,6 +17,8 @@ class basic_menu: public mw::ui_layer {
 
   public:
   basic_menu(sdl_environment &sdl, component *c);
+  basic_menu(component *c): basic_menu {video_manager::instance().get_sdl(), c} { }
+
   virtual ~basic_menu() { delete m_c; }
 
   void set_box_color(color_t color) noexcept { m_box_color = color; }

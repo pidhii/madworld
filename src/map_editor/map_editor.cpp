@@ -17,7 +17,7 @@ mw::map_editor::map_editor(sdl_environment &sdl, area_map &map)
 mw::component*
 mw::map_editor::_build_gui()
 {
-  TTF_Font *font = video_manager::instance().get_font();
+  ttf_font font {video_config::instance().font.path};
   const color_manager &cman = color_manager::instance();
 
   sdl_string_factory make_label_string {font, cman["InteractiveText"]};
@@ -39,7 +39,7 @@ mw::map_editor::_build_gui()
   };
 
   const int point_size =
-    video_config::instance().get_config().font.point_size;
+    video_config::instance().font.point_size;
 
   typedef std::vector<label*> buttons_type;
   std::shared_ptr<buttons_type> buttons = std::make_shared<buttons_type>();

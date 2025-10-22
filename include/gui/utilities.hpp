@@ -1,71 +1,44 @@
 #ifndef GUI_UTILITIES_HPP
 #define GUI_UTILITIES_HPP
 
-#include "geometry.hpp"
-#include "sdl_environment.hpp"
-#include "common.hpp"
-#include "gui/sdl_string.hpp"
-
 #include <SDL2/SDL.h>
-#include <SDL2/SDL2_gfxPrimitives.h>
-#include <SDL2/SDL_ttf.h>
 
-#include <string>
-#include <list>
-#include <optional>
-#include <stdexcept>
+#include <string_view>
+
+
+#define MM_PER_INCH 25.4
+#define CM_PER_INCH (MM_PER_INCH / 10)
+#define PT_PER_INCH 72
+
 
 namespace mw {
-inline namespace guiutl {
-
-//struct placement {
-  //public:
-  //static placement
-  //absolute(const vec2d_d &offs)
-  //{
-    //placement ret;
-    //ret.m_type = placement_type::offset;
-    //ret.m_x = offs.x;
-    //ret.m_y = offs.y;
-    //return ret;
-  //}
-
-  //static placement
-  //relative(double x, double y)
-  //{
-    //placement ret;
-    //ret.m_type = placement_type::ratio;
-    //ret.m_x = x;
-    //ret.m_y = y;
-    //return ret;
-  //}
-
-  //pt2d_i
-  //into_point(const rectangle &box) const
-  //{
-    //switch (m_type)
-    //{
-      //case placement_type::offset:
-        //return pt2d_i(box.offset + vec2d_d(m_x, m_y));
-
-      //case placement_type::ratio:
-        //return pt2d_i(box.offset.x + box.width*m_x,
-                      //box.offset.y + box.height*m_y);
-    //}
-    //abort();
-  //}
-
-  //private:
-  //placement() = default;
-
-  //private:
-  //enum class placement_type { offset, ratio };
-  //placement_type m_type;
-  //double m_x, m_y;
-//};
+inline namespace gui {
 
 
-} // namespcae mw::guiutl
+std::pair<float, float>
+unit_to_pix(float n_units, float units_per_inch);
+
+static inline std::pair<float, float>
+inch_to_pix(float inch)
+{ return unit_to_pix(inch, 1); }
+
+static inline std::pair<float, float>
+mm_to_pix(float mm)
+{ return unit_to_pix(mm, MM_PER_INCH); }
+
+static inline std::pair<float, float>
+cm_to_pix(float mm)
+{ return unit_to_pix(mm, CM_PER_INCH); }
+
+static inline std::pair<float, float>
+pt_to_pix(float pt)
+{ return unit_to_pix(pt, PT_PER_INCH); }
+
+int
+parse_size(std::string_view str);
+
+
+} // namespcae mw::gui
 } // namespace mw
 
 #endif

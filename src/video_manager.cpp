@@ -6,8 +6,6 @@
 
 #include <ether/sandbox.hpp>
 
-#include <vector>
-
 #include <boost/format.hpp>
 
 #include <SDL2/SDL_ttf.h>
@@ -18,6 +16,7 @@
 mw::fps_guardian_type &mw::fps_guardian = fps_guardian_type::instance();
 
 
+bool mw::video_config::gm_use_central_config = false;
 
 mw::video_config&
 mw::video_config::instance()
@@ -28,32 +27,20 @@ mw::video_config::instance()
 
 mw::video_config::video_config()
 {
-  const eth::value conf = mw::central_config::instance().get_video_config();
-  m_config.window_size.w = conf["window_size"][0];
-  m_config.window_size.h = conf["window_size"][1];
-  m_config.resolution.x = conf["resolution"][0];
-  m_config.resolution.y = conf["resolution"][1];
-  m_config.fullscreen = bool(conf["fullscreen"]);
-  m_config.hardware_acceleration = bool(conf["hardware_acceleration"]);
-  m_config.vsync = bool(conf["vsync"]);
-  m_config.fps_limit = conf["fps_limit"];
-  m_config.font.path = conf["font"][0].str();
-  m_config.font.point_size = conf["font"][1];
-}
-
-eth::value
-mw::video_config::dump_config(const config &cfg)
-{
-  eth::sandbox ether;
-  return ether("record")(eth::rev_list(std::vector<eth::value> {
-    eth::tuple("window_size", eth::tuple(cfg.window_size.w, cfg.window_size.h)),
-    eth::tuple("resolution", eth::tuple(cfg.resolution.x, cfg.resolution.y)),
-    eth::tuple("fullscreen", eth::boolean(cfg.fullscreen)),
-    eth::tuple("hardware_acceleration", eth::boolean(cfg.hardware_acceleration)),
-    eth::tuple("vsync", eth::boolean(cfg.vsync)),
-    eth::tuple("fps_limit", cfg.fps_limit),
-    eth::tuple("font", eth::tuple(cfg.font.path, cfg.font.point_size)),
-  }));
+  if (gm_use_central_config)
+  {
+    const eth::value conf = mw::central_config::instance().get_video_config();
+    window_size.w = conf["window_size"][0];
+    window_size.h = conf["window_size"][1];
+    resolution.x = conf["resolution"][0];
+    resolution.y = conf["resolution"][1];
+    fullscreen = bool(conf["fullscreen"]);
+    hardware_acceleration = bool(conf["hardware_acceleration"]);
+    vsync = bool(conf["vsync"]);
+    fps_limit = conf["fps_limit"];
+    font.path = conf["font"][0].str();
+    font.point_size = conf["font"][1];
+  }
 }
 
 void
@@ -92,18 +79,14 @@ mw::video_manager::~video_manager()
     SDL_DestroyRenderer(m_sdl.m_rend);
   if (m_sdl.m_win)
     SDL_DestroyWindow(m_sdl.m_win);
-  if (m_font)
-    TTF_CloseFont(m_font);
-  if (m_small_font)
-    TTF_CloseFont(m_small_font);
   SDL_Quit();
   TTF_Quit();
 }
 
-void
-mw::video_manager::init()
+mw::video_manager::video_manager()
+: m_font {video_config::instance().font.path}
 {
-  const video_config::config &cfg = video_config::instance().get_config();
+  const video_config &cfg = video_config::instance();
 
   if (SDL_Init(SDL_INIT_EVERYTHING))
   {
@@ -156,17 +139,6 @@ mw::video_manager::init()
       throw std::runtime_error {"failed to initilize renderer"};
     }
   }
-
-  if (not (m_font = TTF_OpenFont(cfg.font.path.c_str(), cfg.font.point_size)))
-  {
-    error("failed to open main font (%s)", SDL_GetError());
-    throw std::runtime_error {"failed to open main font"};
-  }
-  if (not (m_small_font = TTF_OpenFont(cfg.font.path.c_str(), cfg.font.point_size*0.65)))
-  {
-    error("failed to open small font (%s)", SDL_GetError());
-    throw std::runtime_error {"failed to open small font"};
-  }
 }
 
 mw::sdl_environment&
@@ -181,7 +153,7 @@ mw::gui::basic_menu*
 mw::video_manager::make_new_settings()
 {
   const color_manager &cman = color_manager::instance();
-  const video_config::config &cfg = video_config::instance().get_config();
+  const video_config &cfg = video_config::instance();
 
   const int chrw = cfg.font.point_size/2;
   const int chrh = cfg.font.point_size;
@@ -196,6 +168,7 @@ mw::video_manager::make_new_settings()
   sdl_string_factory make_normal_string {m_font, cman["Normal"]};
   sdl_string_factory make_boolean_string {m_font, cman["Boolean"]};
   sdl_string_factory make_string_string {m_font, cman["String"]};
+  sdl_string_factory make_number_string {m_font, cman["Number"]};
   make_string_string.set_bg_color(0x77101010);
 
   auto on_hover_begin = [=] (MWGUI_CALLBACK_ARGS) {
@@ -219,7 +192,7 @@ mw::video_manager::make_new_settings()
   window_size_label->on("hover-end", on_hover_end);
 
   text_entry *window_size_text_entry =
-    new text_entry {m_sdl, m_font, cman["Number"], chrw*20, chrh};
+    new text_entry {m_sdl, make_number_string, chrw*20, chrh};
   window_size_text_entry
     ->on("<text_entry>:return", [this, menu] (MWGUI_CALLBACK_ARGS) {
     menu->detach_keyboard_receiver();
@@ -228,14 +201,14 @@ mw::video_manager::make_new_settings()
     if (sscanf(self->get_text().c_str(), "%dx%d", &w, &h) == 2)
     {
       info("new window size: %dx%d", w, h);
-      video_config::config &cfg = video_config::instance().m_config;
+      video_config &cfg = video_config::instance();
       cfg.window_size.w = w;
       cfg.window_size.h = h;
       SDL_SetWindowSize(m_sdl.m_win, w, h);
     }
     else
     {
-      const video_config::config &cfg = video_config::instance().get_config();
+      const video_config &cfg = video_config::instance();
       boost::format fmt_dxd {"%dx%d"};
       self->set_text((fmt_dxd % cfg.window_size.w % cfg.window_size.h).str());
     }
@@ -266,17 +239,17 @@ mw::video_manager::make_new_settings()
   resolution_label->on("hover-end", on_hover_end);
 
   text_entry *resolution_text_entry =
-    new text_entry {m_sdl, m_font, cman["Number"], chrw*20, chrh};
+    new text_entry {m_sdl, make_number_string, chrw*20, chrh};
   resolution_text_entry
     ->on("<text_entry>:return", [this, menu] (MWGUI_CALLBACK_ARGS) {
     menu->detach_keyboard_receiver();
     self->set_cursor(false);
     int x, y;
-    const video_config::config &cfg = video_config::instance().get_config();
+    const video_config &cfg = video_config::instance();
     if (sscanf(self->get_text().c_str(), "%dx%d", &x, &y) == 2)
     {
       info("screen resolution changed: %dx%d", x, y);
-      video_config::config &cfg = video_config::instance().m_config;
+      video_config &cfg = video_config::instance();
       cfg.resolution.x = x;
       cfg.resolution.y = y;
       if (cfg.fullscreen)
@@ -284,7 +257,7 @@ mw::video_manager::make_new_settings()
     }
     else
     {
-      const video_config::config &cfg = video_config::instance().get_config();
+      const video_config &cfg = video_config::instance();
       boost::format fmt_dxd {"%dx%d"};
       self->set_text((fmt_dxd % cfg.resolution.x % cfg.resolution.y).str());
     }
@@ -319,7 +292,7 @@ mw::video_manager::make_new_settings()
 
   horisontal_layout *fullscreen_component = new horisontal_layout {m_sdl};
   fullscreen_component->on("clicked", [=] (MWGUI_CALLBACK_ARGS) {
-    video_config::config &cfg = video_config::instance().m_config;
+    video_config &cfg = video_config::instance();
     if (not cfg.fullscreen)
     {
       info("fullscreen ON");
@@ -383,7 +356,7 @@ mw::video_manager::make_new_settings()
   fps_limit_lable->on("hover-end", on_hover_end);
 
   text_entry *fps_limit_text_entry =
-    new text_entry {m_sdl, m_font, cman["Number"], chrw*10, chrh};
+    new text_entry {m_sdl, make_number_string, chrw*10, chrh};
   fps_limit_text_entry
     ->on("<text_entry>:return", [this, menu] (MWGUI_CALLBACK_ARGS) {
     menu->detach_keyboard_receiver();
@@ -392,13 +365,13 @@ mw::video_manager::make_new_settings()
     if (sscanf(self->get_text().c_str(), "%d", &new_fps) == 1)
     {
       info("changing FPS limit to %d", new_fps);
-      video_config::config &cfg = video_config::instance().m_config;
+      video_config &cfg = video_config::instance();
       cfg.fps_limit = new_fps;
       fps_guardian.update_fps_limit();
     }
     else
     {
-      const video_config::config &cfg = video_config::instance().get_config();
+      const video_config &cfg = video_config::instance();
       boost::format fmt_d {"%d"};
       self->set_text((fmt_d % cfg.fps_limit).str());
     }

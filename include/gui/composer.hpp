@@ -10,7 +10,7 @@ inline namespace gui {
 
 class composer {
   public:
-  composer(sdl_environment &sdl, TTF_Font *font)
+  composer(sdl_environment &sdl, const ttf_font &font)
   : m_sdl {sdl},
     m_default_strfac {font, 0xFFFFFFFF},
     m_label_strfac {m_default_strfac},

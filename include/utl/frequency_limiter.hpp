@@ -33,7 +33,10 @@ class frequency_limiter {
       return true;
     }
     else
+    {
+      duration = std::chrono::duration_cast<duration_type>(m_mindt - (now - m_start));
       return false;
+    }
   }
 
   bool

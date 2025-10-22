@@ -5,6 +5,28 @@
 
 namespace mw {
 
+
+// template <typename T, typename Getter, typename Setter>
+// class parameter {
+//   public:
+//   parameter(Getter getter, Setter setter)
+//   : m_getter {getter},
+//     m_setter {setter}
+//   { }
+
+//   operator T () const
+//   { return m_getter(); }
+
+//   parameter &
+//   operator = (const T &value)
+//   { m_setter(value); }
+
+//   private:
+//   Getter m_getter;
+//   Setter m_setter;
+// };
+
+
 class sdl_environment {
   public:
   SDL_Renderer*

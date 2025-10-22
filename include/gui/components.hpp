@@ -1,14 +1,23 @@
 #ifndef GUI_COMPONENTS_HPP
 #define GUI_COMPONENTS_HPP
 
+#ifdef error
+# undef error
+#endif
+#include <sol/sol.hpp>
+#define error(fmt, ...)                                                        \
+  _error("%s:%d " fmt, __FILE_NAME__, __LINE__, ##__VA_ARGS__)
+
 #include "geometry.hpp"
 #include "common.hpp"
 #include "gui/sdl_string.hpp"
 #include "sdl_environment.hpp"
-#include "gui/utilities.hpp"
+#include "gui/ttf_font.hpp"
 #include "logging.h"
+#include "video_manager.hpp"
 
-#include <type_traits>
+#include <SDL2/SDL2_gfxPrimitives.h>
+
 #include <optional>
 #include <list>
 #include <map>
@@ -27,21 +36,32 @@ using signal_data = qword;
 
 struct component {
   component(sdl_environment &sdl): m_sdl {sdl} { }
+  component(): component {mw::video_manager::instance().get_sdl()} { }
 
   virtual
   ~component() = default;
 
   virtual int
-  get_width() const = 0;
+  get_width() const
+  { return get_dimentions().first; }
 
   virtual int
-  get_height() const = 0;
+  get_height() const
+  { return get_dimentions().second; }
+
+  virtual std::pair<int, int>
+  get_dimentions() const
+  { return {get_width(), get_height()}; }
 
   virtual void
   draw(const pt2d_i &at) const = 0;
 
   virtual int
   send(const std::string &what, const std::any &data = std::any()) = 0;
+
+  virtual void
+  lua_export(sol::table &self)
+  { }
 
   protected:
   sdl_environment &m_sdl;
@@ -53,7 +73,7 @@ struct component {
 namespace detail {
 
   void
-  _draw_box(sdl_environment &sdl, const pt2d_i &at, int w, int h,
+  _draw_box(sdl_environment &sdl, pt2d_i at, int w, int h, int lw,
       const std::optional<color_t> &fill_color,
       const std::optional<color_t> &border_color);
 
@@ -78,6 +98,7 @@ class enriched: public Base {
     m_right_pad {0},
     m_top_pad {0},
     m_bottom_pad {0},
+    m_border_width {0},
     m_ignore_signals {false}
   { }
 
@@ -109,6 +130,10 @@ class enriched: public Base {
   { m_border_color = color; return this; }
 
   enriched*
+  set_border_width(int w) noexcept
+  { m_border_width = w; return this; }
+
+  enriched*
   set_min_width(int w) noexcept
   { m_min_width = w; return this; }
 
@@ -129,28 +154,23 @@ class enriched: public Base {
   forward(const std::string &what, component *c)
   { return on(what, detail::_forwarder {c}); }
 
-  virtual int
-  get_width() const override
+  virtual std::pair<int, int>
+  get_dimentions() const override final
   {
+    auto [w, h] = Base::get_dimentions();
+    // apply padding
+    w += m_left_pad + m_right_pad + m_border_width*2;
+    h += m_top_pad + m_bottom_pad + m_border_width*2;
+    // apply minimal width and hight
     if (m_min_width.has_value())
-      return m_left_pad + m_right_pad
-           + std::max(m_min_width.value(), Base::get_width());
-    else
-      return m_left_pad + Base::get_width() + m_right_pad;
-  }
-
-  virtual int
-  get_height() const override
-  {
+      w = std::max(m_min_width.value(), w);
     if (m_min_height.has_value())
-      return m_top_pad + m_bottom_pad
-           + std::max(m_min_height.value(), Base::get_height());
-    else
-      return m_top_pad + Base::get_height() + m_bottom_pad;
+      h = std::max(m_min_height.value(), h);
+    return {w, h};
   }
 
-  virtual int
-  send(const std::string &what, const std::any &data) override
+  int
+  send(const std::string &what, const std::any &data) override final
   {
     if (m_ignore_signals)
       return 0;
@@ -159,7 +179,8 @@ class enriched: public Base {
     {
       try {
         const vec2d_i oldval = std::any_cast<vec2d_i>(data);
-        const vec2d_i newval = oldval - vec2d_i(m_left_pad, m_top_pad);
+        const vec2d_i newval = oldval - vec2d_i(m_left_pad + m_border_width,
+                                                m_top_pad + m_border_width);
         return _send(what, std::any(newval));
       }
       catch (const std::bad_any_cast&)
@@ -171,12 +192,39 @@ class enriched: public Base {
       return _send(what, data);
   }
 
-  virtual void
-  draw(const pt2d_i &at) const override
+  void
+  draw(const pt2d_i &at) const override final
   {
-    detail::_draw_box(Base::m_sdl, at, get_width(),
-        get_height(), m_fill_color, m_border_color);
-    Base::draw(at + vec2d_i(m_left_pad, m_top_pad));
+    const auto [w, h] = get_dimentions();
+    detail::_draw_box(Base::m_sdl, at, w, h, 0, m_fill_color,
+                      std::nullopt);
+    Base::draw(at + vec2d_i(m_left_pad+m_border_width, m_top_pad+m_border_width));
+    detail::_draw_box(Base::m_sdl, at, w, h, m_border_width, std::nullopt,
+                      m_border_color);
+  }
+
+  void
+  lua_export(sol::table &self) override
+  {
+    Base::lua_export(self);
+
+    #define E(method_name) \
+      self.set_function(#method_name, &enriched::method_name, this);
+    E(get_dimentions)
+    E(set_left_margin)
+    E(set_right_margin)
+    E(set_top_margin)
+    E(set_bottom_margin)
+    E(set_border_color)
+    E(set_border_width)
+    E(set_fill_color)
+    E(set_min_width)
+    E(set_min_height)
+    E(ignore_signals)
+    self.set("on", [this](std::string what, sol::function cb) {
+      on(what, [this, cb](MWGUI_CALLBACK_ARGS) { cb(this); return 0; });
+    });
+    #undef E
   }
 
   private:
@@ -198,17 +246,17 @@ class enriched: public Base {
   int m_left_pad, m_right_pad, m_top_pad, m_bottom_pad;
   std::optional<int> m_min_width, m_min_height;
   std::optional<color_t> m_fill_color, m_border_color;
+  int m_border_width;
   bool m_ignore_signals;
 };
 
 
-/**
- * Signals:
- * - 'updated' -- A new string was set.
- */
 class label_base: public component {
   public:
   label_base(sdl_environment &sdl, const sdl_string &str);
+  label_base(const sdl_string &str)
+  : label_base {mw::video_manager::instance().get_sdl(), str}
+  { }
 
   virtual
   ~label_base() override = default;
@@ -220,10 +268,15 @@ class label_base: public component {
   set_string(const sdl_string &str) noexcept;
 
   virtual int
-  get_width() const override;
+  get_width() const override
+  { return get_dimentions().first; }
 
   virtual int
-  get_height() const override;
+  get_height() const override
+  { return get_dimentions().second; }
+
+  virtual std::pair<int, int>
+  get_dimentions() const override;
 
   virtual void
   draw(const pt2d_i &at) const override;
@@ -236,6 +289,7 @@ class label_base: public component {
 }; // class mw::gui::label_base
 using label = enriched<label_base>;
 
+
 class button_base: public component {
   public:
   button_base(sdl_environment &sdl, component *normal, component *hover)
@@ -243,6 +297,10 @@ class button_base: public component {
     m_ishover {false},
     m_normalc {normal},
     m_hoverc {hover}
+  { }
+
+  button_base(component *normal, component *hover)
+  : button_base {mw::video_manager::instance().get_sdl(), normal, hover}
   { }
 
   virtual
@@ -253,13 +311,9 @@ class button_base: public component {
   set_hover(bool val) noexcept
   { m_ishover = val; }
 
-  virtual int
-  get_width() const override
-  { return m_ishover ? m_hoverc->get_width() : m_normalc->get_width(); }
-
-  virtual int
-  get_height() const override
-  { return m_ishover ? m_hoverc->get_height() : m_normalc->get_height(); }
+  virtual std::pair<int, int>
+  get_dimentions() const override
+  { return m_ishover ? m_hoverc->get_dimentions() : m_normalc->get_dimentions(); }
 
   virtual void
   draw(const pt2d_i &at) const override
@@ -294,8 +348,12 @@ using button = enriched<button_base>;
 
 class text_entry_base: public component {
   public:
-  text_entry_base(sdl_environment &sdl, TTF_Font *font, color_t fg, int width,
-      int height);
+  text_entry_base(sdl_environment &sdl, const sdl_string_factory &strfac,
+                  int width, int height);
+
+  text_entry_base(const sdl_string_factory &strfac, int width, int height)
+  : text_entry_base {video_manager::instance().get_sdl(), strfac, width, height}
+  { }
 
   virtual
   ~text_entry_base() override = default;
@@ -313,7 +371,22 @@ class text_entry_base: public component {
 
   virtual int
   get_width() const override
-  { return m_width; }
+  {
+    // Return specified fixed with if set
+    if (m_width > 0)
+      return m_width;
+
+    texture_info cursinfo;
+    m_cursor.get_texture_info(m_sdl.get_renderer(), cursinfo);
+
+    // Otherwize determine width from the text texture
+    texture_info texinfo;
+    if (m_str)
+      m_str->get_texture_info(m_sdl.get_renderer(), texinfo);
+    else
+      m_strfac(m_text).get_texture_info(m_sdl.get_renderer(), texinfo);
+    return texinfo.w + cursinfo.w;
+  }
 
   virtual int
   get_height() const override
@@ -326,8 +399,7 @@ class text_entry_base: public component {
   send(const std::string &what, const std::any &data) override;
 
   private:
-  TTF_Font *m_font;
-  color_t m_fg;
+  sdl_string_factory m_strfac;
   int m_width, m_height;
   std::string m_text;
   sdl_string m_cursor;
@@ -337,10 +409,70 @@ class text_entry_base: public component {
 using text_entry = enriched<text_entry_base>;
 
 
+class circular_stack_base: public component {
+  public:
+  template <typename Begin, typename End>
+  circular_stack_base(sdl_environment &sdl, Begin begin, End end)
+  : component(sdl), m_components {begin, end}, m_active_index {0}
+  { }
+
+  template <typename Begin, typename End>
+  circular_stack_base(Begin begin, End end)
+  : circular_stack_base {video_manager::instance().get_sdl(), begin, end}
+  { }
+
+  virtual ~circular_stack_base() override = default;
+
+  virtual int
+  get_width() const override
+  { return get_active_component()->get_width(); }
+
+  virtual int
+  get_height() const override
+  { return get_active_component()->get_height(); }
+
+  virtual void
+  draw(const pt2d_i &at) const override
+  { return get_active_component()->draw(at); }
+
+  virtual int
+  send(const std::string &what, const std::any &data) override
+  { return get_active_component()->send(what, data); }
+
+  component*
+  get_active_component() const noexcept
+  { return m_components[m_active_index % m_components.size()].get(); }
+
+  void
+  switch_to_next_component() noexcept
+  { m_active_index = (m_active_index + 1) % m_components.size(); }
+
+  void
+  switch_to_prev_component() noexcept
+  { m_active_index = (m_active_index + m_components.size() - 1) % m_components.size(); }
+
+  virtual void
+  lua_export(sol::table &self) override
+  {
+    #define E(method_name) \
+      self.set_function(#method_name, &circular_stack_base::method_name, this);
+    E(get_active_component)
+    E(switch_to_next_component)
+    E(switch_to_prev_component)
+    #undef E
+  }
+
+  private:
+  std::vector<std::unique_ptr<component>> m_components;
+  int m_active_index;
+};
+using circular_stack = enriched<circular_stack_base>;
+
+
 class message_log_base: public component {
   public:
-  message_log_base(sdl_environment &sdl, TTF_Font *font, color_t fg, int width,
-      int height);
+  message_log_base(sdl_environment &sdl, const ttf_font &font, color_t fg,
+                   int width, int height);
 
   virtual
   ~message_log_base() override = default;
@@ -374,7 +506,7 @@ class message_log_base: public component {
   { return 0; }
 
   private:
-  TTF_Font *m_font;
+  ttf_font m_font;
   int m_width, m_height;
   sdl_string_factory m_strfac;
   std::list<sdl_string> m_msgs;
@@ -388,6 +520,7 @@ class linear_layout_base: public component {
     identifier<std::list<component*>::const_iterator, linear_layout_base>;
 
   using component::component;
+
   virtual
   ~linear_layout_base() override;
 
@@ -441,10 +574,15 @@ class linear_layout_base: public component {
   { return --m_list.end(); }
 
   virtual int
-  get_width() const override;
+  get_width() const override
+  { return get_dimentions().first; }
 
   virtual int
-  get_height() const override;
+  get_height() const override
+  { return get_dimentions().second; }
+
+  virtual std::pair<int, int>
+  get_dimentions() const override;
 
   virtual void
   draw(const pt2d_i &at) const override;
@@ -454,13 +592,45 @@ class linear_layout_base: public component {
 
   protected:
   virtual pt2d_i
-  _next(const pt2d_i &prevpos, const component *prevc) const = 0;
+  _next(const pt2d_i &prevpos, int prevw, int prevh) const = 0;
 
   private:
   std::list<component*> m_list;
   std::optional<component*> m_old_hover;
 };
 using linear_layout = enriched<linear_layout_base>;
+
+
+static inline void
+add_component(component *container, component *child)
+{
+  if (linear_layout *ll = dynamic_cast<linear_layout*>(container))
+    ll->add_component(child);
+  else
+    throw std::runtime_error {"not a linear layout"};
+}
+
+static inline void
+add_component_after(component *container, linear_layout_base::entry_id id,
+                    component *child)
+{
+  if (linear_layout *ll = dynamic_cast<linear_layout*>(container))
+    ll->add_component_after(id, child);
+  else
+    throw std::runtime_error {"not a linear layout"};
+}
+
+static inline void
+add_component_before(component *container, linear_layout_base::entry_id id,
+                    component *child)
+{
+  if (linear_layout *ll = dynamic_cast<linear_layout*>(container))
+    ll->add_component_before(id, child);
+  else
+    throw std::runtime_error {"not a linear layout"};
+}
+
+
 
 
 class horisontal_layout: public linear_layout {
@@ -470,21 +640,20 @@ class horisontal_layout: public linear_layout {
 
   private:
   pt2d_i
-  _next(const pt2d_i &prevpos, const component *prevc) const override
-  { return {prevpos.x + prevc->get_width(), prevpos.y}; }
+  _next(const pt2d_i &prevpos, int prevw, int prevh) const override
+  { return {prevpos.x + prevw, prevpos.y}; }
 }; // mw::gui::horisontal_layout
 
 
 class vertical_layout: public linear_layout {
   public:
   using linear_layout::linear_layout;
-  virtual
-  ~vertical_layout() override = default;
+  virtual ~vertical_layout() override = default;
 
   private:
   pt2d_i
-  _next(const pt2d_i &prevpos, const component *prevc) const override
-  { return {prevpos.x, prevpos.y + prevc->get_height()}; }
+  _next(const pt2d_i &prevpos, int prevw, int prevh) const override
+  { return {prevpos.x, prevpos.y + prevh}; }
 }; // mw::gui::vertical_layout
 
 

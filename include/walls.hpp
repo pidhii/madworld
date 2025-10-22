@@ -50,22 +50,6 @@ class basic_wall: public phys_obstacle, public vis_obstacle {
   is_gone() const override
   { return false; }
 
-  //eth::value
-  //dump() const override
-  //{
-    //eth::value vertices;
-    //for (const pt2d_d &vtx : m_vertices)
-      //vertices = eth::cons(eth::tuple(vtx.x, vtx.y), vertices);
-
-    //const eth::value data = eth::record({
-      //{"vertices", vertices},
-      //{"color", m_color},
-      //{"ends_spec", dump_ends_spec(EndsSpec {})},
-    //});
-
-    //return eth::variant("basic_wall", data);
-  //}
-
   vec2d_d
   act_on_object(area_map &map, phys_object *subj) override
   {
@@ -192,22 +176,6 @@ class filled_wall: public basic_wall<solid_ends> {
     //filledPolygonColor(rend, xs, ys, n, m_fill_color);
     aapolygonColor(rend, xs, ys, n, m_edge_color);
   }
-
-  //eth::value
-  //dump() const override
-  //{
-    //eth::value vertices;
-    //for (auto it = m_vertices.begin(); it != m_vertices.end()-1; ++it)
-      //vertices = eth::cons(eth::tuple(it->x, it->y), vertices);
-
-    //const eth::value data = eth::record({
-      //{"vertices", vertices},
-      //{"edge_color", m_edge_color},
-      //{"fill_color", m_fill_color},
-    //});
-
-    //return eth::variant("filled_wall", data);
-  //}
 
   private:
   color_t m_edge_color;

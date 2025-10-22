@@ -87,18 +87,14 @@ mw::game_manager::run_game(boost::optional<ui_manager&> uiman)
   }
 
   safe_pointer<hud_component> hudptr;
-  const double mouse_on_hud = m_hud_footprint.contains(mousepos, hudptr);
+  const bool mouse_on_hud = m_hud_footprint.contains(mousepos, hudptr);
   if (mouse_on_hud and hudptr and m_input.button_was_pressed("pointer-click"))
-  {
-    //info("before click");
     hudptr.get()->click(mousepos);
-    //info("after click");
-  }
 
   _handle_zoom_keys(mousepos, dt);
   _handle_map_movement_keys(dt);
 
-  if (m_input.button_was_pressed("fow-toggle")) // grave
+  if (m_input.button_was_pressed("fow-toggle"))
     m_fow_enabled = !m_fow_enabled;
 
   if (m_player.has_value())
@@ -111,13 +107,25 @@ mw::game_manager::run_game(boost::optional<ui_manager&> uiman)
     };
     player1.set_move_direction(movedir);
 
-    if (m_input.button_is_down("camera-center")) // space
+    if (m_input.button_is_down("camera-center"))
       m_center_on_player = true;
 
     if (not mouse_on_hud and m_input.button_is_down("ability1"))
     {
       const pt2d_d mp = m_map.pixels_to_point(mousepos);
       player1.get_ability(ability_slot::lmb).activate(m_map, player1, mp);
+    }
+
+    if (m_input.button_is_down("open-door"))
+    {
+      const pt2d_d mp = m_map.pixels_to_point(mousepos);
+      open_door().activate(m_map, player1, mp);
+    }
+
+    if (m_input.button_is_down("close-door"))
+    {
+      const pt2d_d mp = m_map.pixels_to_point(mousepos);
+      close_door().activate(m_map, player1, mp);
     }
   }
 

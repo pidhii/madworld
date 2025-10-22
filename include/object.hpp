@@ -35,10 +35,6 @@ struct object {
   virtual bool
   is_gone() const = 0;
 
-  virtual void
-  destroy()
-  { delete this; }
-
   virtual eth::value
   dump() const
   { return eth::nil(); }

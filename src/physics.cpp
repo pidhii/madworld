@@ -3,7 +3,7 @@
 
 void
 mw::inelastic_collision_1d(double CR, double m1, double &v1, double m2,
-    double &v2)
+                           double &v2)
 {
   const double u1 = (CR*m2*(v2 - v1) + m1*v1 + m2*v2) / (m1 + m2);
   const double u2 = (CR*m1*(v1 - v2) + m1*v1 + m2*v2) / (m1 + m2);
@@ -13,7 +13,7 @@ mw::inelastic_collision_1d(double CR, double m1, double &v1, double m2,
 
 void
 mw::inelastic_collision(double CR, const vec2d_d &_n, double m1, vec2d_d &v1,
-    double m2, vec2d_d &v2)
+                        double m2, vec2d_d &v2)
 {
   if (mag2(v1) < 1e-6 and mag2(v2) < 1e-6)
     error("[inelastic_collision] buldozer");

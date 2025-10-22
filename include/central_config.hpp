@@ -7,6 +7,10 @@ namespace mw {
 
 class central_config {
   public:
+  static void
+  set_config_file_path(const std::string &path)
+  { m_path = path; }
+
   static central_config&
   instance();
 
@@ -19,6 +23,8 @@ class central_config {
   central_config();
 
   static std::string m_path;
+
+  eth::value m_config;
   eth::value m_video;
   eth::value m_colors;
   eth::value m_textures;

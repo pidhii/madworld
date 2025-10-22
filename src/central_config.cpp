@@ -6,7 +6,7 @@
 
 
 std::string
-mw::central_config::m_path = "/home/pidhii/sandbox/create/madworld/config.eth";
+mw::central_config::m_path = "./config.eth";
 
 mw::central_config&
 mw::central_config::instance()

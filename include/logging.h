@@ -5,7 +5,7 @@
 #include <stdio.h>
 
 static void __attribute((format(printf, 1, 2)))
-error(const char *fmt, ...)
+_error(const char *fmt, ...)
 {
   va_list args;
   fputs("\e[38;5;1;1mERROR\e[0m ", stdout);
@@ -16,7 +16,7 @@ error(const char *fmt, ...)
 }
 
 static void __attribute((format(printf, 1, 2)))
-warning(const char *fmt, ...)
+_warning(const char *fmt, ...)
 {
   va_list args;
   fputs("\e[38;5;3;1mWARNING\e[0m ", stdout);
@@ -27,7 +27,7 @@ warning(const char *fmt, ...)
 }
 
 static void __attribute((format(printf, 1, 2)))
-info(const char *fmt, ...)
+_info(const char *fmt, ...)
 {
   va_list args;
   fputs("\e[1mINFO\e[0m ", stdout);
@@ -37,5 +37,8 @@ info(const char *fmt, ...)
   fputc('\n', stdout);
 }
 
+#define error(fmt, ...) _error("%s:%d " fmt, __FILE_NAME__, __LINE__, ##__VA_ARGS__)
+#define warning(fmt, ...) _warning("%s:%d " fmt, __FILE_NAME__, __LINE__, ##__VA_ARGS__)
+#define info(fmt, ...) _info("%s:%d " fmt, __FILE_NAME__, __LINE__, ##__VA_ARGS__)
 
 #endif

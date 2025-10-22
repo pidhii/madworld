@@ -4,12 +4,16 @@
 #include "ui_layer.hpp"
 #include "sdl_environment.hpp"
 #include "logging.h"
+#include "video_manager.hpp"
+#include "utl/frequency_limiter.hpp"
 
 #include <SDL2/SDL.h>
 
 #include <list>
 #include <stdexcept>
 #include <memory>
+#include <thread>
+
 
 namespace mw {
 
@@ -17,6 +21,10 @@ class ui_manager {
   public:
   ui_manager(sdl_environment &sdl)
   : m_sdl {sdl}
+  { }
+
+  ui_manager()
+  : m_sdl {video_manager::instance().get_sdl()}
   { }
 
   void
@@ -62,10 +70,17 @@ class ui_manager {
   }
 
   void
-  run()
+  run(std::optional<mw::frequency_limiter> freqlimiter = std::nullopt)
   {
     while (not m_layers.empty())
     {
+      if (freqlimiter.has_value())
+      {
+        std::chrono::milliseconds tsleep;
+        if (not freqlimiter.value()(tsleep))
+          std::this_thread::sleep_for(tsleep);
+      }
+
       m_layers.front()->run_layer(*this);
       for (const std::shared_ptr<ui_float> &flt : m_floats)
         flt->draw();

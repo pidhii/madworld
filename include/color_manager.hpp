@@ -11,6 +11,10 @@ namespace mw {
 
 class color_manager {
   public:
+  static void
+  use_central_config(bool use)
+  { gm_use_central_config = use; }
+
   static color_manager&
   instance();
 
@@ -25,6 +29,10 @@ class color_manager {
   operator [] (const std::string &key) const noexcept
   { return get_color(key); }
 
+  color_t&
+  operator [] (const std::string &key) noexcept
+  { return m_colors[key]; }
+
   color_manager(const color_manager&) = delete;
   color_manager(color_manager&&) = delete;
   color_manager& operator = (const color_manager&) = delete;
@@ -32,6 +40,8 @@ class color_manager {
 
   private:
   color_manager();
+
+  static bool gm_use_central_config;
 
   std::unordered_map<std::string, color_t> m_colors;
 }; // class mw::color_manager

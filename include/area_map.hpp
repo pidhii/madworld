@@ -85,6 +85,10 @@ class area_map {
   init_background(int pixw, int pixh);
 
   void
+  set_size(double width, double height)
+  { m_width = width; m_height = height; }
+
+  void
   build_walls();
 
   void

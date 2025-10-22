@@ -8,10 +8,29 @@ set (CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include (CheckIncludeFile REQUIRED)
 include (ExternalProject OPTIONAL RESULT_VARIABLE ExternalProject_FOUND)
+include (FetchContent)
 
 find_package (PkgConfig REQUIRED)
 
-set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMakeModules)
+set (CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMakeModules)
+
+
+set (PUGIXML_INSTALL OFF)
+FetchContent_Declare (
+  pugixml
+  GIT_REPOSITORY https://github.com/zeux/pugixml.git
+  GIT_TAG v1.15
+)
+FetchContent_MakeAvailable (pugixml)
+link_libraries (pugixml::static)
+
+FetchContent_Declare(
+  sol2
+  GIT_REPOSITORY https://github.com/ThePhD/sol2.git
+  GIT_TAG v3.5.0
+)
+FetchContent_MakeAvailable(sol2)
+link_libraries(sol2::sol2 lua)
 
 
 if (CMAKE_INSTALL_PREFIX)
@@ -53,6 +72,9 @@ target_link_libraries (madworld_mapgen -lm -lSDL2 -lSDL2_ttf -lSDL2_image ${ETHE
 install (TARGETS madworld_mapgen DESTINATION bin)
 
 add_library (madworld_so SHARED $<TARGET_OBJECTS:madworld_obj>)
-install (TARGETS madworld_so DESTINATION lib)
+set_target_properties (madworld_so PROPERTIES OUTPUT_NAME madworld)
+install (TARGETS madworld_so RENAME DESTINATION lib)
 
 install (DIRECTORY ${CMAKE_SOURCE_DIR}/scripts DESTINATION share/madworld)
+
+install (DIRECTORY ${INCLUDE_DIR}/ DESTINATION include/madworld)

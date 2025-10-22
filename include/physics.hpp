@@ -13,7 +13,7 @@ inelastic_collision_1d(double CR, double m1, double &v1, double m2, double &v2);
 
 void
 inelastic_collision(double CR, const vec2d_d &_n, double m1, vec2d_d &v1,
-    double m2, vec2d_d &v2);
+                    double m2, vec2d_d &v2);
 
 void
 pushing(double m1, const pt2d_d &o1, vec2d_d &a1,

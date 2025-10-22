@@ -2,7 +2,7 @@
 #define VIDEO_MANAGER_HPP
 
 #include "sdl_environment.hpp"
-#include "common.hpp"
+#include "gui/ttf_font.hpp"
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
@@ -21,36 +21,32 @@ inline namespace gui {
 
 class video_config {
   public:
-  struct config {
-    struct { int w, h; } window_size;
-    struct { int x, y; } resolution;
-    bool fullscreen;
-    bool hardware_acceleration;
-    bool vsync;
-    int fps_limit;
-    struct { std::string path; int point_size; } font;
-  };
+  struct { int w, h; } window_size {800, 800};
+  struct { int x, y; } resolution {800, 800};
+  bool fullscreen {false};
+  bool hardware_acceleration {false};
+  bool vsync {false};
+  int fps_limit {60};
+  struct { std::string path; int point_size; } font {"", 16};
+
+  static void
+  use_central_config(bool use) noexcept
+  { gm_use_central_config = use; }
 
   static video_config&
   instance();
-
-  static eth::value
-  dump_config(const config &cfg);
-
-  const config&
-  get_config() const noexcept
-  { return m_config; }
 
   video_config(const video_config&) = delete;
   video_config(video_config&&) = delete;
   video_config& operator = (const video_config&) = delete;
   video_config& operator = (video_config&&) = delete;
 
+
   private:
   video_config();
 
-  private:
-  config m_config;
+  static bool gm_use_central_config;
+  // static bool use_
 
   friend class video_manager;
 };
@@ -100,7 +96,7 @@ class fps_guardian_type {
   {
     if (not m_fps_limit.has_value())
     {
-      m_fps_limit = video_config::instance().get_config().fps_limit;
+      m_fps_limit = video_config::instance().fps_limit;
       return ceil(1000./m_fps_limit.value());
     }
     else
@@ -122,17 +118,12 @@ class video_manager {
   static video_manager&
   instance();
 
-  void
-  init();
-
   sdl_environment&
   get_sdl();
 
-  TTF_Font*
-  get_font() const noexcept { return m_font; }
-
-  TTF_Font*
-  get_small_font() const noexcept { return m_small_font; }
+  const ttf_font&
+  get_font() const noexcept
+  { return m_font; }
 
   gui::basic_menu*
   make_new_settings();
@@ -143,11 +134,11 @@ class video_manager {
   video_manager& operator = (video_manager&&) = delete;
 
   private:
-  video_manager(): m_sdl { } { }
+  video_manager();
   ~video_manager();
 
   sdl_environment m_sdl;
-  TTF_Font *m_font, *m_small_font;
+  ttf_font m_font;
 };
 
 

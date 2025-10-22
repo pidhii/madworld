@@ -37,7 +37,8 @@ mw::md_physics::process(area_map &map)
 
 
 void
-mw::md_physics::_calc_dynamics(area_map &map, std::vector<obj_dynamics> &dyn) const
+mw::md_physics::_calc_dynamics(area_map &map, std::vector<obj_dynamics> &dyn)
+  const
 {
   dyn.reserve(m_objects.size());
   for (phys_object *obj : m_objects)
@@ -73,12 +74,12 @@ mw::md_physics::_calc_dynamics(area_map &map, std::vector<obj_dynamics> &dyn) co
 
 void
 mw::md_physics::_advance_objects(area_map &map, double dt,
-      const std::vector<obj_dynamics> &dyn)
+                                 const std::vector<obj_dynamics> &dyn)
 {
   if (dt <= 0)
     return;
 
-  for (auto [obj, tot_force] : dyn)
+  for (const auto &[obj, tot_force] : dyn)
   {
     const pt2d_d p0 = obj->get_position();
     const vec2d_d v0 = obj->get_velocity();

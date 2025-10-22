@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <type_traits>
 #include <optional>
+#include <tuple>
 
 
 #ifndef SCRIPTS_PATH
@@ -12,16 +13,29 @@
 
 namespace mw {
 
+template <typename ...T>
+struct state_saver {
+  state_saver(T &...refs): m_save {refs...}, m_refs {refs...} {}
+
+  ~state_saver()
+  { m_refs = m_save; }
+
+  std::tuple<T...> m_save;
+  std::tuple<T&...> m_refs;
+}; // struct state_saver
+
+
 typedef uint32_t color_t;
 
-struct color_rgba {
+union color_rgba {
   color_rgba(color_t color)
   : a {uint8_t((color & 0xFF000000) >> 22)},
     b {uint8_t((color & 0x00FF0000) >> 16)},
     g {uint8_t((color & 0x0000FF00) >>  8)},
     r {uint8_t((color & 0x000000FF) >>  0)}
   { }
-  uint8_t a, b, g, r;
+  struct { uint8_t a, b, g, r; };
+  color_t color;
 };
 
 template <typename T>
