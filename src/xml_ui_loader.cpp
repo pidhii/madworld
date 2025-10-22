@@ -109,9 +109,9 @@ mw::xml_ui_loader::_apply_enriched_attributes(Component *component,
     if (std::strcmp(begin->name(), "bottom-margin") == 0)
       component->set_bottom_margin(mw::parse_size(begin->value()));
     if (std::strcmp(begin->name(), "fill-color") == 0)
-      component->set_fill_color(_parse_color(begin->value()));
+      component->set_fill_color(mw::parse_color(begin->value()));
     if (std::strcmp(begin->name(), "border-color") == 0)
-      component->set_border_color(_parse_color(begin->value()));
+      component->set_border_color(mw::parse_color(begin->value()));
     if (std::strcmp(begin->name(), "border-width") == 0)
       component->set_border_width(mw::parse_size(begin->value()));
     if (std::strcmp(begin->name(), "min-width") == 0)
@@ -218,26 +218,6 @@ mw::xml_ui_loader::_fix_string(InIter begin, InIter end, OutIter out)
 }
 
 
-mw::color_t
-mw::xml_ui_loader::_parse_color(const char *str)
-{
-  if (str[0] == '#')
-  {
-    const size_t len = std::strlen(str + 1);
-    assert(len == 2*3 or len == 2*4);
-
-    mw::color_t color = std::strtoul(str + 1, nullptr, 16);
-    if (len == 2*3)
-      color = (color << 8) | 0xFF;
-
-    return be32toh(color);
-  }
-
-  error("unsupported color format: %s", str);
-  throw std::runtime_error {"unsupported color format"};
-}
-
-
 template <typename Attrs>
 void
 mw::xml_ui_loader::_update_style_from_attributes(const Attrs &attributes)
@@ -245,9 +225,9 @@ mw::xml_ui_loader::_update_style_from_attributes(const Attrs &attributes)
   for (const pugi::xml_attribute &attr : attributes)
   {
     if (std::strcmp(attr.name(), "fg") == 0)
-      m_style.fg_color = _parse_color(attr.value());
+      m_style.fg_color = mw::parse_color(attr.value());
     else if (std::strcmp(attr.name(), "bg") == 0)
-      m_style.bg_color = _parse_color(attr.value());
+      m_style.bg_color = mw::parse_color(attr.value());
     else if (std::strcmp(attr.name(), "ps") == 0)
       m_style.point_size = attr.as_uint();
     else if (std::strcmp(attr.name(), "font") == 0)

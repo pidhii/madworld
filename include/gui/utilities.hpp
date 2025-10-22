@@ -1,6 +1,8 @@
 #ifndef GUI_UTILITIES_HPP
 #define GUI_UTILITIES_HPP
 
+#include "common.hpp"
+
 #include <SDL2/SDL.h>
 
 #include <string_view>
@@ -36,6 +38,9 @@ pt_to_pix(float pt)
 
 int
 parse_size(std::string_view str);
+
+mw::color_t
+parse_color(std::string_view str);
 
 
 } // namespcae mw::gui

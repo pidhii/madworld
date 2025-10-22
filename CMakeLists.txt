@@ -15,6 +15,8 @@ find_package (PkgConfig REQUIRED)
 set (CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMakeModules)
 
 
+set (FETCHCONTENT_QUIET OFF)
+
 set (PUGIXML_INSTALL OFF)
 FetchContent_Declare (
   pugixml
@@ -31,6 +33,17 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(sol2)
 link_libraries(sol2::sol2 lua)
+
+set (JSON_BuildTests OFF)
+set (JSON_CI OFF)
+set (JSON_Install OFF)
+FetchContent_Declare(
+  json
+  GIT_REPOSITORY https://github.com/nlohmann/json.git
+  GIT_TAG v3.12.0
+)
+FetchContent_MakeAvailable(json)
+link_libraries(nlohmann_json)
 
 
 if (CMAKE_INSTALL_PREFIX)

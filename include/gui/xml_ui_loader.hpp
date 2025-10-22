@@ -149,9 +149,6 @@ class xml_ui_loader {
   void
   _content_to_string(const pugi::xml_node &xml, OutIter out);
 
-  static mw::color_t
-  _parse_color(const char *str);
-
   template <typename Attrs>
   void
   _update_style_from_attributes(const Attrs &attributes);
