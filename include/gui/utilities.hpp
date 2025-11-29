@@ -16,7 +16,6 @@
 namespace mw {
 inline namespace gui {
 
-
 std::pair<float, float>
 unit_to_pix(float n_units, float units_per_inch);
 

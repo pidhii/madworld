@@ -4,7 +4,7 @@
 
 
 bool
-mw::hud_footprint::contains(const pt2d_i pt, safe_pointer<hud_component> &hud)
+mw::hud_footprint::contains(const pt2d_i pt, const_safe_pointer<hud_component> &hud)
   const noexcept
 {
   for (const auto &[box, boxhud] : m_boxes)

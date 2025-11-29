@@ -18,22 +18,22 @@ class hud_component;
 class hud_footprint {
   public:
   void
-  add(const rectangle &box, const safe_pointer<hud_component> &hud)
+  add(const rectangle &box, const const_safe_pointer<hud_component> &hud)
   { m_boxes.emplace_back(box, hud); }
 
   bool
-  contains(const pt2d_i pt, safe_pointer<hud_component> &hud) const noexcept;
+  contains(const pt2d_i pt, const_safe_pointer<hud_component> &hud) const noexcept;
 
   bool
   contains(const pt2d_i pt) const noexcept
-  { safe_pointer<hud_component> hud; return contains(pt, hud); }
+  { const_safe_pointer<hud_component> hud; return contains(pt, hud); }
 
   void
   clear() noexcept
   { m_boxes.clear(); }
 
   private:
-  std::vector<std::pair<rectangle, safe_pointer<hud_component>>> m_boxes;
+  std::vector<std::pair<rectangle, const_safe_pointer<hud_component>>> m_boxes;
 }; // class mw::hud_footprint
 
 
@@ -65,11 +65,6 @@ using hud_id = heads_up_display::hud_id;
 
 class hud_component: public safe_access<hud_component> {
   public:
-  hud_component(): safe_access(this) { }
-
-  virtual
-  ~hud_component() = default;
-
   /**
    * @brief Update HUD component.
    *

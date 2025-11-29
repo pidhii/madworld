@@ -7,6 +7,7 @@
 
 #include <unordered_map>
 #include <set>
+#include <optional>
 
 #include <SDL2/SDL.h>
 
@@ -28,25 +29,25 @@ class keyboard_controller: public controller {
   };
 
   static key_modifier
-  key_modifier_from_string(const std::string &s);
+  key_modifier_from_string(std::string_view s);
 
   static std::string
   key_modifier_to_string(key_modifier mods);
 
   void
-  make_button(const std::string &key, SDL_Scancode sc, key_modifier mods = none)
+  make_button(std::string_view key, SDL_Scancode sc, key_modifier mods = none)
   { m_keyboard_handles.emplace(key, keyboard_key_handle_data {sc, mods}); }
 
   void
-  make_left_mouse_button(const std::string &key)
+  make_left_mouse_button(std::string_view key)
   { m_lmb_keys.emplace(key); }
 
   void
-  make_right_mouse_button(const std::string &key)
+  make_right_mouse_button(std::string_view key)
   { m_rmb_keys.emplace(key); }
 
   void
-  make_analog(const std::string &key, SDL_Scancode scpos, SDL_Scancode scneg)
+  make_analog(std::string_view key, SDL_Scancode scpos, SDL_Scancode scneg)
   {
     m_analog_handles.emplace(std::piecewise_construct,
                              std::forward_as_tuple(key),
@@ -59,20 +60,24 @@ class keyboard_controller: public controller {
   pt2d_i
   get_pointer() const override;
 
+  vec2d_i
+  get_pointer_shift() const
+  { return m_old_pointer - m_pointer; }
+
   bool
-  button_is_down(const std::string &key) const override
+  button_is_down(std::string_view key) const override
   { return _get_key_handle(key).is_down; }
 
   bool
-  button_was_pressed(const std::string &key) const override
+  button_was_pressed(std::string_view key) const override
   { return _get_key_handle(key).was_pressed; }
 
   bool
-  button_was_released(const std::string &key) const override
+  button_was_released(std::string_view key) const override
   { return _get_key_handle(key).was_released; }
 
   double
-  get_analog(const std::string &key) const override;
+  get_analog(std::string_view key) const override;
 
   private:
   struct key_handle_data {
@@ -112,10 +117,10 @@ class keyboard_controller: public controller {
   };
 
   const key_handle_data&
-  _get_key_handle(const std::string &key) const;
+  _get_key_handle(std::string_view key) const;
 
   const sdl_environment &m_sdl;
-  pt2d_i m_pointer;
+  pt2d_i m_pointer, m_old_pointer;
   std::unordered_map<std::string, keyboard_key_handle_data> m_keyboard_handles;
   std::unordered_map<std::string, simulated_analog_handle_data> m_analog_handles;
   std::set<std::string> m_lmb_keys, m_rmb_keys;

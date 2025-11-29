@@ -338,6 +338,15 @@ class button_base: public component {
       return m_normalc->send(what, data);
   }
 
+  virtual void
+  lua_export(sol::table &self) override
+  {
+    #define E(method_name) \
+      self.set_function(#method_name, &button_base::method_name, this);
+    E(set_hover)
+    #undef E
+  }
+
   private:
   bool m_ishover;
   component *m_normalc;
@@ -385,7 +394,7 @@ class text_entry_base: public component {
       m_str->get_texture_info(m_sdl.get_renderer(), texinfo);
     else
       m_strfac(m_text).get_texture_info(m_sdl.get_renderer(), texinfo);
-    return texinfo.w + cursinfo.w;
+    return texinfo.w + (m_enable_cursor ? cursinfo.w : 0);
   }
 
   virtual int
@@ -545,6 +554,16 @@ class linear_layout_base: public component {
     m_list.erase(id);
   }
 
+  void
+  remove_component(component *c)
+  {
+    const entry_id id {std::find(m_list.begin(), m_list.end(), c)};
+    if (id == m_list.end())
+      throw std::runtime_error {
+          "linear_layout_base::remove_entry: no such component"};
+    remove_entry(id);
+  }
+
   component*
   get_component(entry_id id) const
   { return *id.get(); }
@@ -590,6 +609,17 @@ class linear_layout_base: public component {
   virtual int
   send(const std::string &what, const std::any &data) override;
 
+  virtual void
+  lua_export(sol::table &self) override
+  {
+    #define E(method_name) \
+      self.set_function(#method_name, &linear_layout_base::method_name, this);
+    E(add_component)
+    E(remove_component)
+    E(clear)
+    #undef E
+  }
+
   protected:
   virtual pt2d_i
   _next(const pt2d_i &prevpos, int prevw, int prevh) const = 0;
@@ -607,7 +637,7 @@ add_component(component *container, component *child)
   if (linear_layout *ll = dynamic_cast<linear_layout*>(container))
     ll->add_component(child);
   else
-    throw std::runtime_error {"not a linear layout"};
+    throw std::runtime_error {"add_component: not a linear layout"};
 }
 
 static inline void
@@ -617,7 +647,7 @@ add_component_after(component *container, linear_layout_base::entry_id id,
   if (linear_layout *ll = dynamic_cast<linear_layout*>(container))
     ll->add_component_after(id, child);
   else
-    throw std::runtime_error {"not a linear layout"};
+    throw std::runtime_error {"add_component_after: not a linear layout"};
 }
 
 static inline void
@@ -627,10 +657,26 @@ add_component_before(component *container, linear_layout_base::entry_id id,
   if (linear_layout *ll = dynamic_cast<linear_layout*>(container))
     ll->add_component_before(id, child);
   else
-    throw std::runtime_error {"not a linear layout"};
+    throw std::runtime_error {"add_component_before: not a linear layout"};
 }
 
+static inline void
+remove_component(component *container, component *child)
+{
+  if (linear_layout *ll = dynamic_cast<linear_layout*>(container))
+    ll->remove_component(child);
+  else
+    throw std::runtime_error {"remove_component: not a linear layout"};
+}
 
+static inline void
+clear(component *container)
+{
+  if (linear_layout *ll = dynamic_cast<linear_layout*>(container))
+    ll->clear();
+  else
+    throw std::runtime_error {"clear: not a linear layout"};
+}
 
 
 class horisontal_layout: public linear_layout {

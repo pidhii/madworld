@@ -7,7 +7,6 @@
 
 mw::npc::npc(double phys_radius, const pt2d_d &pos)
 : phys_object(phys_radius, pos),
-  safe_access(this),
   m_mind {nullptr},
   m_body {nullptr},
   m_vision_radius {5},

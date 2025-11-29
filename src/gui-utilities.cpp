@@ -403,7 +403,7 @@ const char _named_colors_json[] = R"(
 static mw::color_t
 _parse_hex_color(std::string_view str)
 {
-  const size_t len = str.size() + 1;
+  const size_t len = str.size() - 1;
   assert(len == 2 * 3 or len == 2 * 4);
 
   mw::color_t color = std::strtoul(str.data() + 1, nullptr, 16);

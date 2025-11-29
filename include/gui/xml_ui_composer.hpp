@@ -8,7 +8,7 @@ namespace mw {
 inline namespace gui {
 
 
-sol::lua_value
+sol::reference
 xml_to_lua(const pugi::xml_node &xml, sol::state &lua);;
 
 
@@ -25,14 +25,17 @@ class lua_binder {
   }
 
   template <typename... Args>
-  auto
+  sol::table
   bind_o(mw::component *c, std::string_view tname, sol::table &o, Args &&...args)
   {
     c->lua_export(o);
     switch (m_lua[tname].get_type())
     {
-      case sol::type::function:
-        return m_lua[tname](o, std::forward<Args>(args)...);
+      case sol::type::function: {
+        sol::function init = m_lua[tname];
+        o["init"] = init;
+        return o;
+      }
 
       case sol::type::table: {
         sol::table t = m_lua[tname];
@@ -41,7 +44,7 @@ class lua_binder {
 
       default:
         throw std::runtime_error {
-            "can't do lua binding with object of type" +
+            "can't do lua binding with object of type " +
             sol::type_name(m_lua, m_lua[tname].get_type())};
     }
   }
@@ -95,7 +98,8 @@ class xml_ui_composer {
   load_document(std::string_view path)
   {
     pugi::xml_document xmldoc;
-    xmldoc.load_file(path.data(), pugi::parse_default | pugi::parse_pi);
+    auto r = xmldoc.load_file(path.data(), pugi::parse_default | pugi::parse_pi);
+    info("loaded %s => %s", path.data(), r.description());
     load_document(xmldoc);
   }
 
@@ -110,23 +114,24 @@ class xml_ui_composer {
     using dom_tree_type = std::map<pugi::xml_node, sol::table>;
     std::shared_ptr<dom_tree_type> domtree = std::make_shared<dom_tree_type>();
 
-    // (lua export) Local DOM traversal function
-    auto _select = [rootdom, domtree, luap = &m_lua](std::string_view xpath) {
-      sol::table result = luap->create_table();
-      size_t i = 0;
-      for (mw::xml_dom r : rootdom.select(xpath))
-      {
-        if (domtree->count(r.xml()))
-          result[i++] = domtree->at(r.xml());
-      }
-      return result;
-    };
-
     for (mw::xml_dom dom : rootdom.select("//*"))
     {
+      // (lua export) Local DOM traversal function
+      auto _select = [dom, domtree, luap = &m_lua](std::string_view xpath) {
+        sol::table result = luap->create_table();
+        size_t i = 1;
+        for (mw::xml_dom r : dom.select(xpath))
+        {
+          if (domtree->count(r.xml()))
+            result[i++] = domtree->at(r.xml());
+        }
+        return result;
+      };
+
       sol::table o = m_lua.create_table();
       o.set_function("select", _select);
       o.set("xml", xml_to_lua(dom.xml(), m_lua));
+      o.set("component", dom.get());
 
       if (dom.xml().attribute("lua-bind"))
       {
@@ -134,8 +139,7 @@ class xml_ui_composer {
         {
           pugi::xml_document dummydoc;
           p.insert(dummydoc);
-          sol::lua_value value = xml_to_lua(dummydoc.first_child(), m_lua);
-          o[p.name()] = value;
+          o[p.name()] = xml_to_lua(dummydoc.last_child(), m_lua);
         }
 
         const std::string_view tname = dom.xml().attribute("lua-bind").value();
@@ -145,6 +149,13 @@ class xml_ui_composer {
         dom->lua_export(o);
 
       domtree->emplace(dom.xml(), o);
+    }
+
+    for (auto &[_, t] : *domtree)
+    {
+      sol::object init = t["init"];
+      if (init.is<sol::function>())
+        init.as<sol::function>()(t);
     }
 
     return rootdom;

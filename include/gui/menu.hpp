@@ -3,7 +3,6 @@
 
 #include "ui_layer.hpp"
 #include "gui/components.hpp"
-#include "utl/frequency_limiter.hpp"
 #include "video_manager.hpp"
 
 #include <optional>

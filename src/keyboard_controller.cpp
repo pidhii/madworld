@@ -1,4 +1,5 @@
 #include "controls/keyboard_controller.hpp"
+#include "logging.h"
 
 #include "exceptions.hpp"
 
@@ -10,6 +11,8 @@ void
 mw::keyboard_controller::update()
 {
   const uint8_t *kbrdstate = m_sdl.get_keyboard_state();
+
+  m_old_pointer = m_pointer;
   const uint32_t mousestate = SDL_GetMouseState(&m_pointer.x, &m_pointer.y);
 
   // Keyboard buttons
@@ -79,8 +82,9 @@ mw::keyboard_controller::update()
 }
 
 const mw::keyboard_controller::key_handle_data&
-mw::keyboard_controller::_get_key_handle(const std::string &key) const
+mw::keyboard_controller::_get_key_handle(std::string_view _key) const
 {
+  const std::string key {_key}; // would not be needed in C++20
   // lmb
   if (m_lmb_keys.find(key) != m_lmb_keys.end())
     return m_lmb_handle;
@@ -95,8 +99,9 @@ mw::keyboard_controller::_get_key_handle(const std::string &key) const
 }
 
 double
-mw::keyboard_controller::get_analog(const std::string &key) const
+mw::keyboard_controller::get_analog(std::string_view _key) const
 {
+  const std::string key {_key}; // would not be needed in C++20
   const auto it = m_analog_handles.find(key);
   if (it == m_analog_handles.end())
     throw mw::exception {"request for unregistered key: " + key};
@@ -104,7 +109,7 @@ mw::keyboard_controller::get_analog(const std::string &key) const
 }
 
 mw::keyboard_controller::key_modifier
-mw::keyboard_controller::key_modifier_from_string(const std::string &s)
+mw::keyboard_controller::key_modifier_from_string(std::string_view s)
 {
   if (s == "shift")
     return shift; 

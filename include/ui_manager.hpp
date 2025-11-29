@@ -1,11 +1,12 @@
 #ifndef UI_MANAGER_HPP
 #define UI_MANAGER_HPP
 
-#include "ui_layer.hpp"
-#include "sdl_environment.hpp"
 #include "logging.h"
-#include "video_manager.hpp"
+#include "sdl_environment.hpp"
+#include "ui_layer.hpp"
 #include "utl/frequency_limiter.hpp"
+#include "utl/scheduler.hpp"
+#include "video_manager.hpp"
 
 #include <SDL2/SDL.h>
 
@@ -13,19 +14,21 @@
 #include <stdexcept>
 #include <memory>
 #include <thread>
+#include <mutex>
+#include <chrono>
 
 
 namespace mw {
 
-class ui_manager {
-  public:
-  ui_manager(sdl_environment &sdl)
-  : m_sdl {sdl}
-  { }
 
-  ui_manager()
-  : m_sdl {video_manager::instance().get_sdl()}
-  { }
+class ui_manager: public scheduler<std::chrono::steady_clock, std::recursive_mutex> {
+  public:
+  ui_manager(sdl_environment &sdl): scheduler {m_run_lock}, m_sdl {sdl} { }
+  ui_manager(): ui_manager {video_manager::instance().get_sdl()} { }
+
+  std::recursive_mutex&
+  get_run_lock() noexcept
+  { return m_run_lock; }
 
   void
   add_layer(std::shared_ptr<ui_layer> layer)
@@ -81,9 +84,9 @@ class ui_manager {
           std::this_thread::sleep_for(tsleep);
       }
 
+      std::lock_guard _ {m_run_lock};
       m_layers.front()->run_layer(*this);
-      for (const std::shared_ptr<ui_float> &flt : m_floats)
-        flt->draw();
+      run_single_task(*this);
     }
   }
 
@@ -112,10 +115,28 @@ class ui_manager {
   }
 
   private:
+  std::recursive_mutex m_run_lock;
   std::list<std::shared_ptr<ui_layer>> m_layers;
   std::list<std::shared_ptr<ui_float>> m_floats;
   sdl_environment &m_sdl;
 }; // class mw::ui_manager
+
+
+class temp_ui_layer {
+  public:
+  template <bool AddLayer = true>
+  [[nodiscard]]
+  temp_ui_layer(ui_manager &ui, const std::shared_ptr<ui_layer> &layer)
+  : m_ui {ui}, m_layer {layer}
+  { if constexpr (AddLayer) ui.add_layer(layer); }
+
+  ~temp_ui_layer()
+  { m_ui.remove_layer(m_layer->get_id()); }
+
+  private:
+  ui_manager &m_ui;
+  std::shared_ptr<ui_layer> m_layer;
+};
 
 } // namespace mw
 

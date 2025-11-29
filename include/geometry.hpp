@@ -13,6 +13,8 @@
 
 #include <SDL2/SDL_rect.h>
 
+struct SDL_Renderer;
+
 
 namespace mw {
 inline namespace geo {
@@ -45,9 +47,14 @@ struct vec2d {
 }; // struct mw::geo::vec2d<T>
 
 template <typename T>
-vec2d<T> to_vec(const pt2d<T> &p) noexcept { return {p.x, p.y}; }
+[[nodiscard]] vec2d<T>
+to_vec(const pt2d<T> &p) noexcept
+{ return {p.x, p.y}; }
+
 template <typename T>
-pt2d<T> to_pt(const vec2d<T> &v) noexcept { return {v.x, v.y}; }
+[[nodiscard]] pt2d<T>
+to_pt(const vec2d<T> &v) noexcept
+{ return {v.x, v.y}; }
 
 template <typename T>
 struct mat2d {
@@ -58,7 +65,7 @@ struct mat2d {
     yx {_yx}, yy {_yy}
   { }
 
-  vec2d<T>
+  [[nodiscard]] vec2d<T>
   operator () (const vec2d<T> &v) const noexcept
   { return {xx*v.x + xy*v.y, yx*v.x + yy*v.y}; }
 
@@ -79,14 +86,14 @@ struct rotation { double s, c; };
 struct line_segment {
   pt2d_d origin;
   vec2d_d direction;
-  pt2d_d operator () (double t) const noexcept;
+  [[nodiscard]] pt2d_d operator () (double t) const noexcept;
 };
 
 struct circle {
   circle() = default;
   circle(const pt2d_d &c, double r): center {c}, radius {r} { }
-  pt2d_d operator () (const rotation &rot) const noexcept;
-  pt2d_d operator () (double phi /* dir. angle in radians */) const noexcept;
+  [[nodiscard]] pt2d_d operator () (const rotation &rot) const noexcept;
+  [[nodiscard]] pt2d_d operator () (double phi /* dir. angle in radians */) const noexcept;
   pt2d_d center;
   double radius;
 }; // struct mw::geo::circle
@@ -102,7 +109,7 @@ struct atunnel {
   vec2d_d velocity;
   vec2d_d acceleration;
   double radius;
-  pt2d_d operator () (double t) const noexcept;
+  [[nodiscard]] pt2d_d operator () (double t) const noexcept;
   void advance(double t) noexcept { origin = (*this)(t); }
 }; // struct mw::geo::tunnel
 
@@ -111,7 +118,7 @@ struct rectangle {
   pt2d_d offset;
   double width, height;
 
-  bool
+  [[nodiscard]] bool
   contains(const pt2d_d &pt) const noexcept
   {
     return
@@ -120,7 +127,7 @@ struct rectangle {
       pt.y - offset.y < height;
   }
 
-  bool
+  [[nodiscard]] bool
   contains_inc(const pt2d_d &pt) const noexcept
   {
     return
@@ -150,93 +157,94 @@ struct rectangle {
 
 
 template <typename T>
-bool
+[[nodiscard]] bool
 operator == (const mw::pt2d<T> &a, const mw::pt2d<T> &b) noexcept
 { return a.x == b.x and a.y == b.y; }
 
 template <typename T>
-bool
+[[nodiscard]] bool
 operator != (const mw::pt2d<T> &a, const mw::pt2d<T> &b) noexcept
 { return not (a == b); }
 
 template <typename T>
-bool
+[[nodiscard]] bool
 operator == (const mw::vec2d<T> &a, const mw::vec2d<T> &b) noexcept
 { return a.x == b.x and a.y == b.y; }
 
 template <typename T>
-bool
+[[nodiscard]] bool
 operator != (const mw::vec2d<T> &a, const mw::vec2d<T> &b) noexcept
 { return not (a == b); }
 
 
 
 template <typename T>
-mw::vec2d<T>
+[[nodiscard]] mw::vec2d<T>
 operator * (double a, const mw::vec2d<T> &v) noexcept
 { return {a*v.x, a*v.y}; }
 
 template <typename T>
-mw::vec2d<T>
+[[nodiscard]] mw::vec2d<T>
 operator * (const mw::vec2d<T> &v, double a) noexcept
 { return a*v; }
 
 template <typename T>
-mw::vec2d<T>
+[[nodiscard]] mw::vec2d<T>
 operator / (const mw::vec2d<T> &v, double a) noexcept
 { return {T(double(v.x)/a), T(double(v.y)/a)}; }
 
 template <typename T>
-mw::vec2d<T>
+[[nodiscard]] mw::vec2d<T>
 operator - (const mw::pt2d<T> &a, const mw::pt2d<T> &b) noexcept
 { return {a.x-b.x, a.y-b.y}; }
 
 template <typename T>
-mw::pt2d<T>
+[[nodiscard]] mw::pt2d<T>
 operator + (const mw::pt2d<T> &p, const mw::vec2d<T> &v) noexcept
 { return {p.x+v.x, p.y+v.y}; }
 
 template <typename T>
-mw::pt2d<T>
+[[nodiscard]] mw::pt2d<T>
 operator - (const mw::pt2d<T> &p, const mw::vec2d<T> &v) noexcept
 { return {p.x-v.x, p.y-v.y}; }
+
 template <typename T>
-mw::vec2d<T>
+[[nodiscard]] mw::vec2d<T>
 operator + (const mw::vec2d<T> &u, const mw::vec2d<T> &v) noexcept
 { return {u.x+v.x, u.y+v.y}; }
 
 template <typename T>
-mw::vec2d<T>
+[[nodiscard]] mw::vec2d<T>
 operator - (const mw::vec2d<T> &u, const mw::vec2d<T> &v) noexcept
 { return {u.x-v.x, u.y-v.y}; }
 
 template <typename T>
-mw::mat2d<T>
+[[nodiscard]] mw::mat2d<T>
 operator * (const mw::mat2d<T> &m, const T &a) noexcept
 { return {m.xx*a, m.xy*a, m.yx*a, m.yy*a}; }
 
 template <typename T>
-mw::mat2d<T>
+[[nodiscard]] mw::mat2d<T>
 operator * (const T &a, const mw::mat2d<T> &m) noexcept
 { return m*a; }
 
 template <typename T>
-mw::mat2d<T>
+[[nodiscard]] mw::mat2d<T>
 operator / (const mw::mat2d<T> &m, const T &a) noexcept
 { return {m.xx/a, m.xy/a, m.yx/a, m.yy/a}; }
 
 template <typename T>
-mw::mat2d<T>
+[[nodiscard]] mw::mat2d<T>
 operator + (const mw::mat2d<T> &a, const mw::mat2d<T> &b) noexcept
 { return {a.xx+b.xx, a.xy+b.xy, a.yx+b.yx, a.yy+b.yy}; }
 
 template <typename T>
-mw::mat2d<T>
+[[nodiscard]] mw::mat2d<T>
 operator - (const mw::mat2d<T> &a, const mw::mat2d<T> &b) noexcept
 { return {a.xx-b.xx, a.xy-b.xy, a.yx-b.yx, a.yy-b.yy}; }
 
 template <typename T>
-mw::mat2d<T>
+[[nodiscard]] mw::mat2d<T>
 operator * (const mw::mat2d<T> &a, const mw::mat2d<T> &b) noexcept
 {
   return {
@@ -248,39 +256,39 @@ operator * (const mw::mat2d<T> &a, const mw::mat2d<T> &b) noexcept
 namespace mw {
 inline namespace geo {
 
-inline pt2d_d
+[[nodiscard]] inline pt2d_d
 line_segment::operator () (double t) const noexcept
 { return origin + t*direction; }
 
-inline pt2d_d
+[[nodiscard]] inline pt2d_d
 circle::operator () (const rotation &rot) const noexcept
 { return center + radius*vec2d_d(rot.c, rot.s); }
 
-inline pt2d_d
+[[nodiscard]] inline pt2d_d
 circle::operator () (double phi) const noexcept
 { return this->operator()({sin(phi), cos(phi)}); }
 
-inline pt2d_d
+[[nodiscard]] inline pt2d_d
 atunnel::operator () (double t) const noexcept
 { return origin + velocity*t + acceleration*t*t/2; }
 
 template <typename T>
-double
+[[nodiscard]] double
 dot(const mw::vec2d<T> &v, const mw::vec2d<T> &u) noexcept
 { return fma(v.x, u.x, v.y*u.y); }
 
 template <typename T>
-T
+[[nodiscard]] T
 mag2(const mw::vec2d<T> &v) noexcept
 { return fma(v.x, v.x, v.y*v.y); }
 
 template <typename T>
-T
+[[nodiscard]] T
 mag(const mw::vec2d<T> &v) noexcept
 { return std::sqrt(mag2(v)); }
 
 template <typename T>
-mw::vec2d<T>
+[[nodiscard]] mw::vec2d<T>
 normalized(const mw::vec2d<T> &vec) noexcept
 {
   const double m = mag(vec);
@@ -289,18 +297,18 @@ normalized(const mw::vec2d<T> &vec) noexcept
 
 /* Return the angle between two vectors in radians in the range [0, pi]. */
 template <typename T>
-double
+[[nodiscard]] double
 angle(const vec2d<T> &v, const vec2d<T> &u) noexcept
 { return acos(dot(v, u)/(mag(u)*mag(v))); }
 
 /* Return the directional angle of the vector in radians in the rante [-pi, pi]. */
 template <typename T>
-double
+[[nodiscard]] double
 dirangle(const vec2d<T> &v) noexcept
 { return atan2(v.y, v.x); }
 
 template <typename T>
-vec2d<T>
+[[nodiscard]] vec2d<T>
 rotated(const vec2d<T> &v, const rotation &rot) noexcept
 {
   return {
@@ -393,28 +401,52 @@ overlap_box_circle(const rectangle &r, const circle &c);
 bool
 overlap_box_linesegm(const rectangle &r, const line_segment &l);
 
-class mapping {
+
+// As i do often use offsets and scales directly, it is important to
+// distinguis between the to variants of possible implementation:
+// - mul_add: s * x + o   -- what i have historicaly
+// - add_mul: s * (x + o) -- what someone else (e.g. SDL) may prefer
+enum class mapping_order { mul_add, add_mul };
+template <mapping_order Order = mapping_order::mul_add>
+class linear_mapping {
   public:
-  static const mapping identity;
+  static constexpr mapping_order order = Order;
 
-  mapping(): m_xscale {1}, m_yscale {1}, m_offs {0, 0} { }
+  static const linear_mapping identity;
 
-  mapping(const vec2d<double> &offs, double xscale, double yscale)
+  linear_mapping(): m_xscale {1}, m_yscale {1}, m_offs {0, 0} { }
+
+  linear_mapping(const vec2d<double> &offs, double xscale, double yscale)
   : m_xscale {xscale},
     m_yscale {yscale},
     m_offs {offs}
   { }
 
-  pt2d<double>
+  template <mapping_order OtherOrder>
+  linear_mapping(const linear_mapping<OtherOrder> &other);
+
+  /** 
+   * @brief Construct a mapping with current SDL viewport offset and scales.
+   * @param rend SDL renderer where the viewport and scales will be taken from.
+   * @return Mapping from the current viewport to the pixel coordinates.
+   */
+  [[nodiscard]] static linear_mapping
+  from_sdl_viewport(SDL_Renderer *rend);
+
+  [[nodiscard]] pt2d<double>
   operator () (const pt2d<double> &p) const noexcept
   {
-    return {
-      m_xscale*p.x + m_offs.x,
-      m_yscale*p.y + m_offs.y
-    };
+    if constexpr (order == mapping_order::mul_add)
+      return {m_xscale * p.x + m_offs.x, m_yscale * p.y + m_offs.y};
+    else
+      return {m_xscale * (p.x + m_offs.x), m_yscale * (p.y + m_offs.y)};
   }
 
-  rectangle
+  [[nodiscard]] vec2d<double>
+  operator () (const vec2d<double> &p) const noexcept
+  { return {m_xscale * p.x, m_yscale * p.y}; }
+
+  [[nodiscard]] rectangle
   operator () (const rectangle &rect) const noexcept
   {
     return rectangle {
@@ -424,26 +456,63 @@ class mapping {
     };
   }
 
-  double
+  [[nodiscard]] double
   get_x_scale() const noexcept
   { return m_xscale; }
 
-  double
+  [[nodiscard]] double
   get_y_scale() const noexcept
   { return m_yscale; }
 
-  vec2d<double>
+  [[nodiscard]] vec2d<double>
   get_offset() const noexcept
   { return m_offs; }
 
-  mapping
+  [[nodiscard]] linear_mapping
   inverse() const noexcept
-  { return {-1*vec2d_d {m_offs.x/m_xscale, m_offs.y/m_yscale}, 1/m_xscale, 1/m_yscale}; }
+  {
+    /* * * * * * * * * * * *
+     *   mul_add:
+     *   y = ax + o
+     *   x = (y - o)/a = (1/a)y - o/a
+     *   
+     *   add_mul:
+     *   y = a(x + o)
+     *   x = y/a - o = (1/a)(y - ao)
+     */
+    if constexpr (order == mapping_order::mul_add)
+      return {-1*vec2d_d {m_offs.x/m_xscale, m_offs.y/m_yscale}, 1/m_xscale, 1/m_yscale};
+    else
+      return {-1*vec2d_d {m_offs.x*m_xscale, m_offs.y*m_yscale}, 1/m_xscale, 1/m_yscale};
+  }
 
   private:
   double m_xscale, m_yscale;
   vec2d<double> m_offs;
-}; // class mapping
+}; // class linear_mapping
+using mapping = linear_mapping<mapping_order::mul_add>;
+using mapping_ = linear_mapping<mapping_order::add_mul>;
+
+// ax + o = a(x + o/a)
+template <>
+template <> inline
+mapping_::linear_mapping(const mapping &other)
+: m_xscale {other.get_x_scale()},
+  m_yscale {other.get_y_scale()},
+  m_offs {other.get_offset().x / other.get_x_scale(),
+          other.get_offset().y / other.get_y_scale()}
+{ }
+
+// a(x + o) = ax + ao
+template <>
+template <>
+inline
+mapping::linear_mapping(const mapping_ &other)
+: m_xscale {other.get_x_scale()},
+  m_yscale {other.get_y_scale()},
+  m_offs {other.get_offset().x * other.get_x_scale(),
+          other.get_offset().y * other.get_y_scale()}
+{ }
 
 inline mapping
 compose(const mapping &f, const mapping &g)
@@ -454,7 +523,6 @@ compose(const mapping &f, const mapping &g)
     g.get_y_scale()*f.get_y_scale()
   };
 }
-
 
 struct quadratic_solver {
   double x1, x2;
@@ -509,6 +577,12 @@ struct quartic {
 /** @} */
 } // namespace mw::geo
 } // namespace mw
+
+
+[[nodiscard]] inline mw::mapping
+operator * (const mw::mapping &f, const mw::mapping &g)
+{ return mw::compose(f, g); }
+
 
 namespace std {
 /** @ingroup Geometry */

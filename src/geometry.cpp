@@ -6,11 +6,47 @@
 #include <algorithm>
 #include <limits>
 
+#include <SDL2/SDL.h>
+
 #define AIRBAG 0.00001
 #define AIRBAG_SCALE 0.01
 
+template <>
+const mw::linear_mapping<mw::mapping_order::mul_add>
+    mw::linear_mapping<mw::mapping_order::mul_add>::identity {{0, 0}, 1, 1};
 
-const mw::geo::mapping mw::geo::mapping::identity {{0, 0}, 1, 1};
+template <>
+const mw::linear_mapping<mw::mapping_order::add_mul>
+    mw::linear_mapping<mw::mapping_order::add_mul>::identity {{0, 0}, 1, 1};
+
+
+template <>
+mw::linear_mapping<mw::mapping_order::mul_add>
+mw::linear_mapping<mw::mapping_order::mul_add>::from_sdl_viewport(SDL_Renderer *rend)
+{
+  SDL_Rect viewport;
+  float scale_x, scale_y;
+  SDL_RenderGetScale(rend, &scale_x, &scale_y);
+  SDL_RenderGetViewport(rend, &viewport);
+
+  const mw::vec2d_d offset {viewport.x*scale_x, viewport.y*scale_y};
+  return {offset, scale_x, scale_y};
+}
+
+template <>
+mw::linear_mapping<mw::mapping_order::add_mul>
+mw::linear_mapping<mw::mapping_order::add_mul>::from_sdl_viewport(SDL_Renderer *rend)
+{
+  SDL_Rect viewport;
+  float scale_x, scale_y;
+  SDL_RenderGetScale(rend, &scale_x, &scale_y);
+  SDL_RenderGetViewport(rend, &viewport);
+
+  const mw::vec2d_i offset {viewport.x, viewport.y};
+  return {mw::vec2d_d(offset), scale_x, scale_y};
+}
+
+
 
 #define EQN_EPSILON 1e-10
 

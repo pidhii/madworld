@@ -86,10 +86,10 @@ mw::game_manager::run_game(boost::optional<ui_manager&> uiman)
     return;
   }
 
-  safe_pointer<hud_component> hudptr;
+  const_safe_pointer<hud_component> hudptr;
   const bool mouse_on_hud = m_hud_footprint.contains(mousepos, hudptr);
   if (mouse_on_hud and hudptr and m_input.button_was_pressed("pointer-click"))
-    hudptr.get()->click(mousepos);
+    const_safe_pointer_cast<hud_component>(hudptr)->click(mousepos);
 
   _handle_zoom_keys(mousepos, dt);
   _handle_map_movement_keys(dt);

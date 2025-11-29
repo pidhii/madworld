@@ -3,7 +3,7 @@
 
 #include "geometry.hpp"
 
-#include <string>
+#include <string_view>
 
 
 namespace mw {
@@ -18,19 +18,19 @@ struct controller {
 
   /** Check if a key is in a DOWN-state. */
   virtual bool
-  button_is_down(const std::string &key) const = 0;
+  button_is_down(std::string_view key) const = 0;
 
   /** Check if a key was pressed sinsce the last update. */
   virtual bool
-  button_was_pressed(const std::string &key) const = 0;
+  button_was_pressed(std::string_view key) const = 0;
 
   /** Check if a key was released sisnce the last update. */
   virtual bool
-  button_was_released(const std::string &key) const = 0;
+  button_was_released(std::string_view key) const = 0;
 
   /** Get value of an analog input ranging from [-1, 1]. */
   virtual double
-  get_analog(const std::string &key) const = 0;
+  get_analog(std::string_view key) const = 0;
 }; // class mw::controller
 
 } // namespace mw

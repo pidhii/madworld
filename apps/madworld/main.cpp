@@ -1,21 +1,22 @@
-#include "logging.h"
-#include "geometry.hpp"
 #include "area_map.hpp"
-#include "player.hpp"
-#include "npc.hpp"
+#include "central_config.hpp"
+#include "color_manager.hpp"
+#include "controls/keyboard_controller.hpp"
+#include "door.hpp"
+#include "fps_display.hpp"
 #include "game_manager.hpp"
+#include "geometry.hpp"
+#include "gui/composer.hpp"
+#include "gui/menu.hpp"
+#include "gui/xml_ui_composer.hpp"
+#include "logging.h"
+#include "map_editor.hpp"
+#include "map_generation.hpp"
+#include "npc.hpp"
+#include "player.hpp"
+#include "textures.hpp"
 #include "ui_manager.hpp"
 #include "video_manager.hpp"
-#include "map_editor.hpp"
-#include "fps_display.hpp"
-#include "textures.hpp"
-#include "gui/menu.hpp"
-#include "gui/composer.hpp"
-#include "controls/keyboard_controller.hpp"
-#include "central_config.hpp"
-#include "map_generation.hpp"
-#include "door.hpp"
-#include "color_manager.hpp"
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL2_gfxPrimitives.h>
@@ -272,68 +273,18 @@ the_main(int argc, char **argv)
   textures.load("BloodStain", "./textures/blood-stain-1.png");
   textures.load("BulletGlow", "./textures/BulletGlow2.png");
 
-  mw::area_map map {sdl, textures};
-  map.set_size(200, 200);
-
   //map.load("./map.eth");
 
-  // mw::map_generator_m1 mapgen;
-  // info("generating level layout");
-  // mw::generate_map(mapgen, 0, 200, 200);
-  // info("transfering walls on the map");
-  // mapgen.apply(map);
-  // info("building grid");
-  // map.build_grid();
-
-  map.init_background(4096*2, 4096*2);
-
-  mw::player *player1 = new mw::player {{20, 20}, 0.007};
-  info("player1 = %p", static_cast<mw::vis_obstacle*>(player1));
-  player1->set_glow(textures["PlayerGlow"].tex, 20);
-  // ---
-  mw::simple_gun *gun = new mw::simple_gun {30, 10, 1e-3};
-  gun->set_bullet_glow(textures["BulletGlow"].tex, 0x55);
-  player1->set_ability(mw::ability_slot::lmb, gun);
-  // ---
-  mw::object_id player1_id = map.add_object(player1);
-  map.register_phys_object(player1_id);
-  map.register_phys_obstacle(player1_id);
-  map.register_vis_obstacle(player1_id);
-
-
   // XXX TEST XXX
-  mw::door *door = new mw::door {{30, 20}, {30, 22}};
-  mw::object_id doorid = map.add_object(door);
-  map.register_phys_obstacle(doorid);
-  map.register_vis_obstacle(doorid);
+  // mw::door *door = new mw::door {{30, 20}, {30, 22}};
+  // mw::object_id doorid = map.add_object(door);
+  // map.register_phys_obstacle(doorid);
+  // map.register_vis_obstacle(doorid);
   // XXX TEST XXX
-
-  std::vector<mw::safe_pointer<mw::npc>> npcs;
-  for (int i = 0; i < 0; ++i)
-  {
-    mw::npc *npc = new mw::npc {0.3, {41. + i*1., 20}};
-    npc->set_nickname(std::string("NPC-") + std::to_string(i));
-    npc->set_move_speed(0.01);
-    npc->set_vision_radius(21);
-    npc->make_mind<mw::simple_ai>(*npc, map).set_chase_player(false);
-    mw::simple_body &npcbody = npc->make_body<mw::simple_body>(*npc, 16., 7.);
-    npcbody.set_blood_stain(textures["BloodStain"].tex);
-    npcbody.set_blood(false);
-    npc->set_color(0xFF5555AA);
-    mw::object_id npc_id = map.add_object(npc);
-    map.register_phys_object(npc_id);
-    map.register_phys_obstacle(npc_id);
-    map.register_vis_obstacle(npc_id);
-
-    npcs.push_back(npc->get_safe_pointer());
-  }
 
   mw::ui_manager uiman {sdl};
 
   mw::ttf_font font = vman.get_font();
-
-  mw::vertical_layout *menu_layout = new mw::vertical_layout {sdl};
-  std::shared_ptr<mw::basic_menu> main_menu = std::make_shared<mw::basic_menu>(sdl, menu_layout);
 
   mw::keyboard_controller kbrd {sdl};
   const eth::value &inputcfg =
@@ -355,74 +306,141 @@ the_main(int argc, char **argv)
   kbrd.make_button("open-door", SDL_GetScancodeFromName("o"));
   kbrd.make_button("close-door", SDL_GetScancodeFromName("c"));
 
-  mw::composer guicomp {sdl, font};
-  menu_layout->add_component(
-    guicomp.make_button("Enter the Game")
-    ->on("clicked", [&] (MWGUI_CALLBACK_ARGS) {
-      info("starting game_manager");
-      self->set_hover(false);
-      std::shared_ptr<mw::game_manager> gman =
-        std::make_shared<mw::game_manager>(sdl, map, kbrd);
-      gman->set_player(*player1, 20);
+  sol::state lua;
+  lua.open_libraries(sol::lib::base, sol::lib::string);
+  mw::xml_ui_composer xmlui {lua};
+  xmlui.load_document("./apps/madworld/ui.xml");
+  std::shared_ptr<mw::basic_menu> main_menu =
+      std::make_shared<mw::basic_menu>(sdl, xmlui.build_component("/*[@id='main-menu']"));
 
-      TTF_Font *small_font = font(mw::video_config::instance().font.point_size * 0.65);
-      mw::sdl_string_factory hud_strfac {font};
-      hud_strfac.set_font_size(mw::video_config::instance().font.point_size * 0.65);
 
-      npc_access_hud *npchud = new npc_access_hud {sdl, small_font, {100, 10}};
-      mw::radio_group_ptr memradios = mw::make_radio_group();
-      for (auto it = npcs.begin(); it != npcs.end(); ++it)
-      {
-        mw::safe_pointer<mw::npc> npcptr = *it;
-        mw::component *npcctlhud =
-          _make_npc_ctl_hud(sdl, &map, &gman->hud(), hud_strfac, npcptr, memradios);
-        npchud->add_npc(npcptr, npcctlhud);
-      }
-      gman->hud().add_component(npchud);
+  lua.set_function("generate_map", [&](sol::table args) {
+    const unsigned seed = args.get_or("seed", 0);
+    const int width = args.get_or("width", 200);
+    const int height = args.get_or("height", 200);
 
-      for (auto it = npcs.begin(); it != npcs.end(); ++it)
-      {
-        mw::safe_pointer<mw::npc> npcptr = *it;
-        gman->hud().add_component(
-            new npc_name_hud {sdl, map, npcptr, hud_strfac});
-      }
+    mw::area_map *map = new mw::area_map {sdl, textures};
+    map->set_size(width, height);
 
-      uiman.add_layer(gman);
-      return 0;
-    })
-  );
-  menu_layout->add_component(
-    guicomp.make_button("Map editor")
-    ->on("clicked", [&] (MWGUI_CALLBACK_ARGS) {
-      info("starting map_editor");
-      self->set_hover(false);
-      uiman.add_layer(std::make_shared<mw::map_editor>(sdl, map));
-      return 0;
-    })
-  );
-  menu_layout->add_component(
-    guicomp.make_button("Settings")
-    ->on("clicked", [&] (MWGUI_CALLBACK_ARGS) {
-      self->set_hover(false);
-      uiman.add_layer(std::shared_ptr<mw::ui_layer> {
-          mw::video_manager::instance().make_new_settings()});
-      return 0;
-    })
-  );
-  const int point_size =
-    mw::video_config::instance().font.point_size;
-  menu_layout->add_component(new mw::padding {sdl, 0, point_size});
-  menu_layout->add_component(
-    guicomp.make_button("Quit")
-    ->on("clicked", [&] (MWGUI_CALLBACK_ARGS) {
-      self->set_hover(false);
-      info("quit");
-      main_menu->close();
-      return 0;
-    })
-  );
+    mw::map_generator_m1 mapgen;
+    info("generating level layout");
+    mw::generate_map(mapgen, seed, width, height);
+    info("transfering walls on the map");
+    mapgen.apply(*map);
+    info("building grid");
+    map->build_grid();
 
-  menu_layout->set_min_width(menu_layout->get_width() + 15);
+    map->init_background(4096*2, 4096*2);
+
+    return map;
+  });
+
+
+  lua.set_function("create_player", [&](sol::table args) {
+    const sol::table default_pos = lua.create_table_with("x", 20, "y", 20);
+
+    // retreive arguments
+    const auto [x, y] = args.get_or("position", default_pos).get<double, double>(1, 2);
+    const double speed = args.get_or("speed", 0.007);
+    const double glow_radius = args.get_or("glow_radius", 20);
+    info("player position: %f %f", x, y);
+
+    // create player
+    mw::player *player = new mw::player {{x, y}, speed};
+    info("player = %p", static_cast<mw::vis_obstacle*>(player));
+    player->set_glow(textures["PlayerGlow"].tex, glow_radius);
+
+    // give him a gun
+    mw::simple_gun *gun = new mw::simple_gun {30, 10, 1e-3};
+    gun->set_bullet_glow(textures["BulletGlow"].tex, 0x55);
+    player->set_ability(mw::ability_slot::lmb, gun);
+
+    return player;
+  });
+
+
+  lua.set_function("create_npc", [&](sol::table args) {
+    // retreive arguments
+    const auto [x, y] = args.get<sol::table>("position").get<double, double>(1, 2);
+    const double speed = args.get_or("speed", 0.01);
+    const std::string name = args.get_or<std::string>("name", "NPC");
+    const double radius = args.get_or("radius", 0.3);
+    const double vision_radius = args.get_or("vision_radius", 21);
+    const double color = args.get_or("color", 0xFF5555AA);
+
+    mw::npc *npc = new mw::npc {radius, {x, y}};
+    npc->set_nickname(name);
+    npc->set_move_speed(speed);
+    npc->set_vision_radius(vision_radius);
+    npc->set_color(color);
+
+    return npc;
+  });
+
+
+  lua.set_function("run_game", [&](mw::area_map *map, mw::player *player,
+                                   double vision_radius /*20*/,
+                                   std::vector<mw::npc *> npcs) {
+
+    mw::object_id player_id = map->add_object(player);
+    map->register_phys_object(player_id);
+    map->register_phys_obstacle(player_id);
+    map->register_vis_obstacle(player_id);
+
+    for (mw::npc *npc : npcs)
+    {
+      npc->make_mind<mw::simple_ai>(*npc, *map).set_chase_player(false);
+      mw::simple_body &npcbody = npc->make_body<mw::simple_body>(*npc, 16., 7.);
+      npcbody.set_blood_stain(textures["BloodStain"].tex);
+      npcbody.set_blood(false);
+
+      mw::object_id npc_id = map->add_object(npc);
+      map->register_phys_object(npc_id);
+      map->register_phys_obstacle(npc_id);
+      map->register_vis_obstacle(npc_id);
+    }
+
+    std::shared_ptr<mw::game_manager> gman =
+        std::make_shared<mw::game_manager>(sdl, *map, kbrd);
+    gman->set_player(*player, vision_radius);
+
+    TTF_Font *small_font = font(mw::video_config::instance().font.point_size * 0.65);
+    mw::sdl_string_factory hud_strfac {font};
+    hud_strfac.set_font_size(mw::video_config::instance().font.point_size * 0.65);
+
+    npc_access_hud *npchud = new npc_access_hud {sdl, small_font, {100, 10}};
+    mw::radio_group_ptr memradios = mw::make_radio_group();
+    for (mw::npc *npc : npcs)
+    {
+      mw::safe_pointer<mw::npc> npcptr = npc->get_safe_pointer();
+      mw::component *npcctlhud =
+        _make_npc_ctl_hud(sdl, map, &gman->hud(), hud_strfac, npcptr, memradios);
+      npchud->add_npc(npcptr, npcctlhud);
+    }
+    gman->hud().add_component(npchud);
+
+    for (mw::npc *npc : npcs)
+    {
+      mw::safe_pointer<mw::npc> npcptr = npc->get_safe_pointer();
+      gman->hud().add_component(
+          new npc_name_hud {sdl, *map, npcptr, hud_strfac});
+    }
+
+    uiman.add_layer(gman);
+  });
+
+
+  lua.set_function("open_settings", [&]() {
+    uiman.add_layer(std::shared_ptr<mw::ui_layer> {
+        mw::video_manager::instance().make_new_settings()});
+  });
+
+
+  lua.set_function("quit", [&]() {
+    info("quit");
+    main_menu->close();
+  });
+
 
   uiman.add_layer(main_menu);
 

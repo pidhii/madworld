@@ -1,10 +1,12 @@
 #include "gui/xml_ui_loader.hpp"
 #include "gui/utilities.hpp"
+#include "video_manager.hpp"
 
 #include <algorithm>
 #include <cassert>
 #include <cstring>
 #include <stdexcept>
+#include <type_traits>
 
 
 template <typename ...T>
@@ -14,7 +16,7 @@ struct state_saver {
   ~state_saver()
   { m_refs = m_save; }
 
-  std::tuple<T...> m_save;
+  std::tuple<std::__remove_cvref_t<T>...> m_save;
   std::tuple<T&...> m_refs;
 }; // struct state_saver
 
@@ -141,7 +143,7 @@ mw::xml_ui_loader::_build_component(const pugi::xml_node &xml)
   {
     mw::sdl_string_factory strfac = _make_string_factory(m_style);
     const std::string text = xml_text_walker::extract_text(xml);
-    auto label = new mw::label {strfac(text.c_str())};
+    auto *label = new mw::label {strfac(text.c_str())};
     _apply_enriched_attributes(label, xml.attributes_begin(),
                                xml.attributes_end());
     return label;
@@ -158,7 +160,7 @@ mw::xml_ui_loader::_build_component(const pugi::xml_node &xml)
   }
   else if (std::strcmp(xml.name(), "vertical-layout") == 0)
   {
-    mw::linear_layout *layout = new mw::vertical_layout;
+    auto *layout = new mw::vertical_layout;
     for (const pugi::xml_node &child : xml.children())
       layout->add_component(_build_and_remember_component(child));
     _apply_enriched_attributes(layout, xml.attributes_begin(),
@@ -167,7 +169,7 @@ mw::xml_ui_loader::_build_component(const pugi::xml_node &xml)
   }
   else if (std::strcmp(xml.name(), "horizontal-layout") == 0)
   {
-    mw::linear_layout *layout = new mw::horisontal_layout;
+    auto *layout = new mw::horisontal_layout;
     for (const pugi::xml_node &child : xml.children())
       layout->add_component(_build_and_remember_component(child));
     _apply_enriched_attributes(layout, xml.attributes_begin(),
@@ -181,11 +183,28 @@ mw::xml_ui_loader::_build_component(const pugi::xml_node &xml)
     std::transform(xml.children().begin(), xml.children().end(),
                     std::back_inserter(states),
                     std::bind(&xml_ui_loader::_build_and_remember_component, this, _1));
-    mw::circular_stack *cs =
-        new mw::circular_stack {states.begin(), states.end()};
+    auto *cs = new mw::circular_stack {states.begin(), states.end()};
     _apply_enriched_attributes(cs, xml.attributes_begin(),
                                xml.attributes_end());
     return cs;
+  }
+  else if (std::strcmp(xml.name(), "text-entry") == 0)
+  {
+    SDL_Renderer *rend = mw::video_manager::instance().get_sdl().get_renderer();
+    mw::sdl_string_factory strfac = _make_string_factory(m_style);
+    mw::texture_info linfo, winfo;
+    strfac("w").get_texture_info(rend, winfo);
+    strfac("l").get_texture_info(rend, linfo);
+
+    const int reqw = mw::parse_size(xml.attribute("width").as_string("0"));
+    const int reqh = mw::parse_size(xml.attribute("height").as_string("0"));
+    const int w = std::max(reqw, winfo.w);
+    const int h = std::max(reqh, linfo.h);
+    const bool cursor = xml.attribute("cursor").as_bool(false);
+    auto *textent = new text_entry {strfac, w, h};
+    textent->set_cursor(cursor);
+    _apply_enriched_attributes(textent, xml.attributes_begin(), xml.attributes_end());
+    return textent;
   }
 
   error("unknown component: type='%s'", _node_type_name(xml.type()).c_str());
@@ -228,7 +247,7 @@ mw::xml_ui_loader::_update_style_from_attributes(const Attrs &attributes)
       m_style.fg_color = mw::parse_color(attr.value());
     else if (std::strcmp(attr.name(), "bg") == 0)
       m_style.bg_color = mw::parse_color(attr.value());
-    else if (std::strcmp(attr.name(), "ps") == 0)
+    else if (std::strcmp(attr.name(), "font-size") == 0)
       m_style.point_size = attr.as_uint();
     else if (std::strcmp(attr.name(), "font") == 0)
     { // Don't update font if path didnt change (expencive)

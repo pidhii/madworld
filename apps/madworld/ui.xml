@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+
+<script path="./apps/madworld/ui.lua"/>
+
+<vertical-layout id="main-menu">
+  <button lua-bind="EnterGameButton">
+    <label tag="normal" fg="#c7c7c7">Enter the Game</label>
+    <label tag="hover" fg="#ffffff" bg="#555555">Enter the Game</label>
+  </button>
+  <button lua-bind="SettingsButton">
+    <label tag="normal" fg="#c7c7c7">Settings</label>
+    <label tag="hover" fg="#ffffff" bg="#555555">Settings</label>
+  </button>
+  <label top-margin="10pt" fg="#00000000"> nigger </label> <!-- padding -->
+  <button lua-bind="QuitButton">
+    <label tag="normal" fg="#c7c7c7">Quit</label>
+    <label tag="hover" fg="#ffffff" bg="#555555">Quit</label>
+  </button>
+</vertical-layout>
+

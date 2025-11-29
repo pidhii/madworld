@@ -20,6 +20,7 @@ mw::gui::basic_menu::basic_menu(mw::sdl_environment &sdl, component *c)
   m_border_color {color_manager::instance()["BoxBorder"]},
   m_c {c},
   m_is_hovering {false},
+  m_kbrd_receiver {c},
   m_pending_close {false}
 { }
 
@@ -98,6 +99,8 @@ mw::gui::basic_menu::draw() const
   if (SDL_SetRenderDrawBlendMode(rend, oldblend))
     warning("%s", SDL_GetError());
   aapolygonColor(rend, m_box.xs, m_box.ys, 4, m_border_color);
+  SDL_RenderSetViewport(m_sdl.get_renderer(), nullptr);
+  SDL_RenderSetClipRect(m_sdl.get_renderer(), nullptr);
   m_c->draw({m_box.xs[0]+m_leftpad, m_box.ys[0]+m_toppad});
 }
 
@@ -117,6 +120,9 @@ mw::gui::basic_menu::run_layer(mw::ui_manager &uiman)
         {
           // refresh whole stack of layers
           uiman.draw(get_id());
+          SDL_Rect viewport;
+          SDL_RenderGetViewport(m_sdl.get_renderer(), &viewport);
+          SDL_SetWindowSize(m_sdl.get_window(), viewport.w, viewport.y);
           break;
         }
 
